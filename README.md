@@ -84,12 +84,25 @@ skip verification, so treat the flag as a deliberate trade-off.
 | `truenas_shares` | SMB and NFS shares: list, create, enable/disable, delete. |
 | `truenas_apps` | Apps: list, inspect, config, start, stop, redeploy; install a custom app from Compose; delete it; manage Docker registries. |
 | `truenas_jobs` | Recent jobs, one job, wait for a job, abort. |
+| `truenas_network` | Interfaces and link state, static routes, and hostname/domain/gateway/DNS/proxy. |
+| `truenas_users` | Users and groups (create, update, delete), plus reading and replacing filesystem ACLs. |
+| `truenas_replication` | Replication tasks: list, inspect, create from a raw payload, run, delete. |
+| `truenas_cloud` | Cloud sync (rclone) and cloud backup (restic) tasks: list, run, one-off transfer, restore, abort, delete. |
+| `truenas_alerts` | Current alerts (dismiss/restore), alert services (email, Slack, PagerDuty, SNMP, webhook, …), and outgoing mail. |
 | `truenas_call` | Any JSON-RPC method, for everything the curated tools miss. |
 
 Every tool except `truenas_instances` and `truenas_call` takes an optional
 `instance` name. Destructive actions (`delete_dataset`, snapshot delete and
-rollback, share delete, job abort, app delete, registry remove, instance remove) refuse to run unless
-`confirm: true` is passed.
+rollback, share delete, job abort, app delete, registry remove, instance remove,
+route remove, replication/cloud sync delete, alert service delete, user/group
+delete, ACL replacement) refuse to run unless `confirm: true` is passed.
+
+`truenas_call` is the escape hatch, but it is not a blind one: it keeps a table
+of methods that take the system down or destroy data (`system.reboot`,
+`system.shutdown`, `pool.export`, `pool.dataset.delete`, `disk.wipe`,
+`update.update`, `failover.*`, …) and refuses to invoke them without
+`confirm: true`, including when they are wrapped in `core.bulk`. That table is
+in `lib/danger.js`; add a method there when a new API surface appears.
 
 Examples:
 
@@ -113,6 +126,17 @@ truenas_apps action="create_custom" app="my-web" compose="services:
 
 # Deleting an app or a registry needs an explicit second call
 truenas_apps action="delete" app="my-web" confirm=true
+
+# Networking, accounts and scheduled transfers
+truenas_network action="interfaces"
+truenas_network action="dns_update" nameservers=["1.1.1.1","8.8.8.8"]
+truenas_users action="list"
+truenas_users action="acl" path="/mnt/app/forgejo"
+truenas_replication action="list"
+truenas_cloud action="list"
+truenas_alerts action="services"
+
+# The escape hatch refuses system.reboot without confirmation too
 truenas_call method="user.query" params=[[]]
 ```
 
@@ -147,8 +171,12 @@ npm install
   settings page.
 - `lib/http.js`, `lib/routes.js` — the settings page's same-origin routes on the
   DSH web server, with an origin/host guard so only the DSH page can call them.
-- `lib/tools.js` — the eight tools, with compact text rendering and curated field
-  projections.
+- `lib/tool-kit.js` — the shared tool plumbing (schema, `ok`/`fail`,
+  `requireConfirm`, the per-instance client resolution).
+- `lib/danger.js` — the destructive-method table that `truenas_call` consults.
+- `lib/tools.js` — the core tools, with compact text rendering and curated field
+  projections; the network, users/ACL, replication, cloud and alert tools live
+  next to it in `lib/tools-*.js`.
 - `client.js` — the React settings page, rendered into the plugin row's
   `plugins.row.config` seat. It is a plain module loaded by the harness, so it
   needs no bundler and no duplicate React.
