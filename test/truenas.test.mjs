@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import { MockTruenas } from './mock-truenas.mjs'
 import { TruenasClient, RpcError } from '../lib/truenas.js'
-import { parseEndpoint } from '../lib/ws.js'
+import { explainConnectError, parseEndpoint } from '../lib/ws.js'
 import {
   addOrUpdateInstance,
   defaultCredentialName,
@@ -262,4 +262,57 @@ test('readiness and key masking', () => {
   assert.equal(maskKey('1-abcdefghijklmnop'), '1-ab…op')
   assert.equal(maskKey('short'), '********')
   assert.equal(maskKey(''), '')
+})
+
+test('a bare host:port is HTTPS first, but ws:// stays plaintext', () => {
+  const bare = parseEndpoint('192.168.2.88:86', undefined, true)
+  assert.equal(bare.secure, true)
+  assert.equal(bare.schemeExplicit, false)
+  assert.equal(bare.port, 86)
+  assert.equal(bare.rejectUnauthorized, false)
+
+  const explicit = parseEndpoint('ws://192.168.2.88:86', undefined, true)
+  assert.equal(explicit.secure, false)
+  assert.equal(explicit.schemeExplicit, true)
+  assert.equal(explicit.port, 86)
+})
+
+test('a plain-HTTP listener is explained instead of surfacing an OpenSSL code', () => {
+  const endpoint = parseEndpoint('192.168.2.88:86', undefined, true)
+  const error = Object.assign(new Error('ssl3_get_record:wrong version number'), { code: 'EPROTO' })
+  const text = explainConnectError(error, endpoint)
+  assert.match(text, /plain HTTP/)
+  assert.match(text, /ws:\/\/192\.168\.2\.88:86/)
+})
+
+test('with TLS verification skipped, a bare host:port falls back to plaintext once', async () => {
+  const server = await new MockTruenas({ apiKey: '1-fallback', username: 'root' }).start()
+  // `server.url` is http://127.0.0.1:<port>; strip the scheme to make the plugin
+  // try TLS first, exactly like a user typing "192.168.2.88:86".
+  const bare = server.url.replace(/^http:\/\//, '')
+  const client = new TruenasClient({ url: bare, username: 'root', apiKey: '1-fallback', insecureTls: true })
+  try {
+    const info = await client.request('system.info')
+    assert.equal(info.hostname, 'mock.test')
+    assert.match(client.transportNote || '', /plain HTTP/)
+    assert.match(client.displayUrl, /^http:\/\//)
+  } finally {
+    client.close()
+    await server.stop()
+  }
+})
+
+test('without skip-verify the fallback is refused and the error explains ws://', async () => {
+  const server = await new MockTruenas({ apiKey: '1-fallback', username: 'root' }).start()
+  const bare = server.url.replace(/^http:\/\//, '')
+  const client = new TruenasClient({ url: bare, username: 'root', apiKey: '1-fallback', insecureTls: false })
+  try {
+    await assert.rejects(
+      () => client.request('system.info'),
+      (error) => /plain HTTP/.test(error.message) && /ws:\/\//.test(error.message),
+    )
+  } finally {
+    client.close()
+    await server.stop()
+  }
 })

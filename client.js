@@ -31,14 +31,14 @@ window.__ModuleLoader__.load({
       name: 'Name',
       nameHint: 'How tools refer to this system. Defaults to the host name.',
       address: 'Address',
-      addressHint: 'Web UI address, for example https://nas.lab.local or 192.168.1.10.',
+      addressHint: 'Web UI address, for example https://nas.lab.local or 192.168.1.10. For a plain-HTTP port (a reverse proxy on :86), write ws://192.168.1.10:86.',
       username: 'Username',
       usernameHint: 'The TrueNAS user that owns the API key.',
       apiKey: 'API key',
       apiKeyHint: 'Create one in TrueNAS under Credentials → API Keys.',
       apiKeyKeep: 'Leave blank to keep the stored key.',
       insecureTls: 'Skip TLS certificate verification',
-      insecureTlsHint: 'Only for a self-signed NAS certificate on your own network.',
+      insecureTlsHint: 'For a self-signed certificate; when the port is actually plain HTTP the plugin falls back to ws://.',
       advanced: 'Advanced',
       apiPath: 'API path',
       apiPathHint: 'WebSocket API path. Defaults to /api/current.',
@@ -86,14 +86,14 @@ window.__ModuleLoader__.load({
       name: '名称',
       nameHint: '工具引用这台系统时使用的名字，默认取主机名。',
       address: '地址',
-      addressHint: 'Web 界面地址，例如 https://nas.lab.local 或 192.168.1.10。',
+      addressHint: 'Web 界面地址，例如 https://nas.lab.local 或 192.168.1.10；若该端口是纯 HTTP（例如反代 :86），写成 ws://192.168.1.10:86。',
       username: '用户名',
       usernameHint: '拥有该 API 密钥的 TrueNAS 用户。',
       apiKey: 'API 密钥',
       apiKeyHint: '在 TrueNAS 的「凭据 → API 密钥」中创建。',
       apiKeyKeep: '留空则沿用已保存的密钥。',
       insecureTls: '跳过 TLS 证书校验',
-      insecureTlsHint: '仅用于自己网络中使用自签名证书的 NAS。',
+      insecureTlsHint: '用于自签名证书；勾选后若该端口其实是纯 HTTP，会自动改用 ws://。',
       advanced: '高级选项',
       apiPath: 'API 路径',
       apiPathHint: 'WebSocket API 路径，默认 /api/current。',
@@ -355,11 +355,11 @@ window.__ModuleLoader__.load({
           if (!result || result.ok !== true) throw new Error((result && result.error) || 'The system could not be verified.')
           setForm(null)
           await load()
-          setNotice(
+          const base =
             form.mode === 'add'
               ? t('noticeSaved', { name: result.instance, version: result.version })
-              : t('noticeUpdated', { name: result.instance, version: result.version }),
-          )
+              : t('noticeUpdated', { name: result.instance, version: result.version })
+          setNotice(result.transportNote ? `${base} · ${result.transportNote}` : base)
         } catch (error) {
           setForm((current) => (current ? { ...current, error: String((error && error.message) || error) } : current))
         } finally {

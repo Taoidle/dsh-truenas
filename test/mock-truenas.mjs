@@ -127,6 +127,13 @@ export class MockTruenas {
     socket.on('data', (chunk) => {
       buffered = Buffer.concat([buffered, chunk])
       if (!upgraded) {
+        // A TLS ClientHello (0x16) is not an HTTP request. Answer it the way a
+        // real web server on a plain-HTTP port does, so the client's TLS layer
+        // reports WRONG_VERSION_NUMBER instead of hanging until the timeout.
+        if (buffered.length && buffered[0] !== 0x47) {
+          socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n')
+          return
+        }
         const end = buffered.indexOf('\r\n\r\n')
         if (end < 0) return
         const head = buffered.subarray(0, end).toString('latin1')

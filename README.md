@@ -232,6 +232,12 @@ masked client frames, JSON-RPC dispatch, jobs), so it needs no NAS.
   the removed REST endpoints are not.
 - WebSocket connections are kept per instance and closed when the plugin
   unloads.
+- A bare `host:port` is tried over TLS first. If that port turns out to speak
+  plain HTTP (a reverse proxy on `:80`/`:86` — OpenSSL reports
+  `WRONG_VERSION_NUMBER`), enter the address as `ws://host:port` instead, or
+  tick **Skip TLS verification** and the plugin falls back to `ws://` on its own
+  and says so in the saved notice. Verification never stores an instance it
+  could not authenticate.
 
 ## License
 
