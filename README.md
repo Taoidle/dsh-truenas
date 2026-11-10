@@ -31,9 +31,11 @@ control inside the package page (**Included parts**).
 ## Configure
 
 Open the row's configuration page. It adds one card per TrueNAS system with its
-address, user, API key and TLS option; the key is
-verified against the NAS *before* it is stored in the DSH credential store, so a
-typo never leaves a half-configured instance behind.
+address, user, API key and TLS option. The key is verified against the NAS
+*before* it is stored in the DSH credential store, so a typo never leaves a
+half-configured instance behind.
+
+![The TrueNAS configuration page in DSH](docs/screenshot.png)
 
 The page manages the same list as the `truenas_instances` tool, so either surface
 works:
