@@ -78,17 +78,20 @@ skip verification, so treat the flag as a deliberate trade-off.
 | Tool | Purpose |
 | --- | --- |
 | `truenas_instances` | List / add / update / remove / test configured instances. |
-| `truenas_system` | Version and hardware, alerts, services. |
+| `truenas_system` | Version and hardware, alerts, services, boot environments (list/activate), update status and available versions, system dataset, SSH settings, proactive support, tunables. |
 | `truenas_storage` | Pools, datasets, create/delete datasets, scrub. |
 | `truenas_snapshots` | List, create, delete, roll back, clone ZFS snapshots. |
 | `truenas_shares` | SMB and NFS shares: list, create, enable/disable, delete. |
-| `truenas_apps` | Apps: list, inspect, config, start, stop, redeploy; install a custom app from Compose; delete it; manage Docker registries. |
+| `truenas_apps` | Apps: list, inspect, config, start, stop, redeploy, upgrade, roll back, pull images, edit a custom app, list images (and outdated images); install a custom app from Compose; delete it; manage Docker registries. |
 | `truenas_jobs` | Recent jobs, one job, wait for a job, abort. |
 | `truenas_network` | Interfaces and link state, static routes, and hostname/domain/gateway/DNS/proxy. |
-| `truenas_users` | Users and groups (create, update, delete), plus reading and replacing filesystem ACLs. |
+| `truenas_users` | Users and groups (create, update, delete), filesystem ACLs, local privileges and roles, and API keys. |
 | `truenas_replication` | Replication tasks: list, inspect, create from a raw payload, run, delete. |
 | `truenas_cloud` | Cloud sync (rclone) and cloud backup (restic) tasks: list, run, one-off transfer, restore, abort, delete. |
 | `truenas_alerts` | Current alerts (dismiss/restore), alert services (email, Slack, PagerDuty, SNMP, webhook, …), and outgoing mail. |
+| `truenas_tasks` | Cron jobs and rsync tasks: list, inspect, create, update, delete, run now. |
+| `truenas_reporting` | Netdata graph list, time-series data (CPU, memory, disk, interface, load, …), reporting config, exporters. |
+| `truenas_docker` | Docker engine status and configuration, networks, NVIDIA runtime, and Apps dataset backups. |
 | `truenas_call` | Any JSON-RPC method, for everything the curated tools miss. |
 
 Every tool except `truenas_instances` and `truenas_call` takes an optional
@@ -135,6 +138,29 @@ truenas_users action="acl" path="/mnt/app/forgejo"
 truenas_replication action="list"
 truenas_cloud action="list"
 truenas_alerts action="services"
+
+# Scheduled work
+truenas_tasks action="cron_list"
+truenas_tasks action="cron_add" description="nightly scrub report" command="/usr/bin/zpool status > /tmp/zpool.txt" \
+  user="root" schedule={"minute":"30","hour":"3"}
+
+# Metrics
+truenas_reporting action="graphs"
+truenas_reporting action="data" graph="cpu" unit="DAY"
+truenas_reporting action="data" graph="interface" identifier="enp6s18" unit="HOUR"
+
+# Docker engine, images and app maintenance
+truenas_docker action="status"
+truenas_docker action="networks"
+truenas_apps action="images"
+truenas_apps action="upgrade" app="plex" appVersion="latest"
+
+# Host maintenance and access
+truenas_system action="boot_envs"
+truenas_system action="update_status"
+truenas_system action="ssh_config"
+truenas_users action="privileges"
+truenas_users action="api_keys"
 
 # The escape hatch refuses system.reboot without confirmation too
 truenas_call method="user.query" params=[[]]
