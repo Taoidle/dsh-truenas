@@ -82,13 +82,13 @@ skip verification, so treat the flag as a deliberate trade-off.
 | `truenas_storage` | Pools, datasets, create/delete datasets, scrub. |
 | `truenas_snapshots` | List, create, delete, roll back, clone ZFS snapshots. |
 | `truenas_shares` | SMB and NFS shares: list, create, enable/disable, delete. |
-| `truenas_apps` | Installed apps: list, inspect, config, start, stop, redeploy. |
+| `truenas_apps` | Apps: list, inspect, config, start, stop, redeploy; install a custom app from Compose; delete it; manage Docker registries. |
 | `truenas_jobs` | Recent jobs, one job, wait for a job, abort. |
 | `truenas_call` | Any JSON-RPC method, for everything the curated tools miss. |
 
 Every tool except `truenas_instances` and `truenas_call` takes an optional
 `instance` name. Destructive actions (`delete_dataset`, snapshot delete and
-rollback, share delete, job abort, instance remove) refuse to run unless
+rollback, share delete, job abort, app delete, registry remove, instance remove) refuse to run unless
 `confirm: true` is passed.
 
 Examples:
@@ -98,6 +98,21 @@ truenas_system action="info"
 truenas_storage action="pools" instance="backup-nas"
 truenas_snapshots action="rollback" snapshot="tank/media@before-upgrade" confirm=true
 truenas_apps action="restart" app="plex"
+
+# Add a Docker registry the NAS pulls images from (ask the user for the token first)
+truenas_apps action="registry_add" registryName="ghcr" \
+  registryUri="https://ghcr.io" registryUsername="octocat" registryPassword="ghp_..."
+
+# Install a custom app from a Compose document
+truenas_apps action="create_custom" app="my-web" compose="services:
+  web:
+    image: ghcr.io/octocat/my-web:latest
+    ports:
+      - \"8080:80\"
+    restart: unless-stopped"
+
+# Deleting an app or a registry needs an explicit second call
+truenas_apps action="delete" app="my-web" confirm=true
 truenas_call method="user.query" params=[[]]
 ```
 

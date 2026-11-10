@@ -88,6 +88,9 @@ export class MockTruenas {
     this.calls = []
     this.jobs = new Map()
     this.jobSequence = 100
+    this.registries = []
+    this.registrySequence = 0
+    this.apps = []
     this.sockets = new Map()
   }
 
@@ -244,6 +247,76 @@ export class MockTruenas {
         fail: args[1]?.fail === true,
       })
       return this.respond(socket, id, jobId)
+    }
+
+    if (method === 'app.registry.query') return this.respond(socket, id, this.registries)
+
+    if (method === 'app.registry.create') {
+      const data = args[0] ?? {}
+      const entry = {
+        id: ++this.registrySequence,
+        name: data.name,
+        uri: data.uri || 'https://index.docker.io/v1/',
+        username: data.username,
+        password: '********',
+        description: data.description ?? '',
+      }
+      this.registries.push(entry)
+      return this.respond(socket, id, entry)
+    }
+
+    if (method === 'app.registry.update') {
+      const entry = this.registries.find((registry) => registry.id === args[0])
+      if (!entry) return this.fail(socket, id, `Registry ${args[0]} not found`)
+      Object.assign(entry, args[1] || {})
+      entry.password = '********'
+      return this.respond(socket, id, entry)
+    }
+
+    if (method === 'app.registry.delete') {
+      const before = this.registries.length
+      this.registries = this.registries.filter((registry) => registry.id !== args[0])
+      if (this.registries.length === before) return this.fail(socket, id, `Registry ${args[0]} not found`)
+      return this.respond(socket, id, true)
+    }
+
+    if (method === 'app.create') {
+      const data = args[0] ?? {}
+      const appName = data.app_name
+      const jobId = ++this.jobSequence
+      this.jobs.set(jobId, {
+        id: jobId,
+        state: 'RUNNING',
+        polls: 0,
+        result: { name: appName, state: 'RUNNING', custom_app: true },
+        fail: false,
+      })
+      this.apps.push({
+        name: appName,
+        state: 'RUNNING',
+        version: '1.0.0',
+        human_version: `${appName} 1.0.0`,
+        custom_app: data.custom_app === true,
+        upgrade_available: false,
+      })
+      return this.respond(socket, id, jobId)
+    }
+
+    if (method === 'app.delete') {
+      const appName = args[0]
+      this.apps = this.apps.filter((app) => app.name !== appName)
+      const jobId = ++this.jobSequence
+      this.jobs.set(jobId, { id: jobId, state: 'RUNNING', polls: 0, result: null, fail: false })
+      return this.respond(socket, id, jobId)
+    }
+
+    if (method === 'app.query') {
+      const filters = Array.isArray(args[0]) ? args[0] : []
+      const triple = Array.isArray(filters[0]) ? filters[0] : undefined
+      if (Array.isArray(triple) && triple[0] === 'name') {
+        return this.respond(socket, id, this.apps.filter((app) => app.name === triple[2]))
+      }
+      return this.respond(socket, id, this.apps)
     }
 
     if (method === 'core.get_jobs') {
