@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="TrueNAS manager">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12294a"/>
+      <stop offset="1" stop-color="#0a6c8f"/>
+    </linearGradient>
+    <linearGradient id="bay" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8f4ff"/>
+      <stop offset="1" stop-color="#a9c9e6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- storage appliance chassis -->
+  <rect x="11" y="13" width="42" height="38" rx="6" fill="#071a2e" stroke="#3fc1e0" stroke-width="1.6"/>
+  <!-- three drive bays -->
+  <g fill="url(#bay)">
+    <rect x="16" y="19" width="32" height="7" rx="2.2"/>
+    <rect x="16" y="29" width="32" height="7" rx="2.2"/>
+    <rect x="16" y="39" width="32" height="7" rx="2.2"/>
+  </g>
+  <!-- activity LEDs -->
+  <g fill="#0b3a52">
+    <circle cx="21.5" cy="22.5" r="1.5"/>
+    <circle cx="21.5" cy="32.5" r="1.5"/>
+    <circle cx="21.5" cy="42.5" r="1.5"/>
+  </g>
+  <g fill="#2ee6a8">
+    <circle cx="43.5" cy="22.5" r="1.6"/>
+    <circle cx="43.5" cy="32.5" r="1.6"/>
+    <circle cx="43.5" cy="42.5" r="1.6"/>
+  </g>
+  <!-- data wave escaping the chassis -->
+  <path d="M46 50c4.5 1.6 9 1.2 12-1.2" fill="none" stroke="#5fd3f3" stroke-width="2.4" stroke-linecap="round" opacity="0.9"/>
+</svg>

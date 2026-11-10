@@ -1,0 +1,4 @@
+- insert:
+    - id: dsh-truenas
+      name: 'dsh-truenas'
+      config: {}

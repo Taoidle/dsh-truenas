@@ -1,0 +1,57 @@
+{
+  "name": "dsh-truenas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Manage one or more TrueNAS systems from DSH over the JSON-RPC 2.0 WebSocket API.",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "truenas",
+    "nas",
+    "zfs"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "~3.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Taoidle/dsh-truenas.git"
+  },
+  "homepage": "https://github.com/Taoidle/dsh-truenas#readme",
+  "bugs": {
+    "url": "https://github.com/Taoidle/dsh-truenas/issues"
+  }
+}

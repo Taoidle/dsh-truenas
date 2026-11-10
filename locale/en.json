@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "TrueNAS manager",
+    "description": "Manage one or more TrueNAS systems over the JSON-RPC WebSocket API: pools, datasets, snapshots, shares, apps and jobs."
+  }
+}
