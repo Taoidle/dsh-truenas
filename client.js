@@ -2,10 +2,11 @@
  * Settings page for dsh-truenas.
  *
  * The bundle is host-only for its behaviour, but the DSH Web UI renders this
- * module into the plugin row's configuration seat: `plugins.row.config` keyed by
- * `<package name>#<row id>`. The page edits the instance list against the
- * plugin's own `/dsh-truenas/config` and `/dsh-truenas/action` routes, so the
- * API key only ever travels from this form to the DSH credential store.
+ * module in two seats: `settings.section` (Settings → TrueNAS) and
+ * `plugins.row.config` keyed by `<package name>#<row id>` (the plugin row's
+ * configure control). Both render the same page and talk to the plugin's own
+ * `/dsh-truenas/config` and `/dsh-truenas/action` routes, so the API key only
+ * ever travels from this form to the DSH credential store.
  */
 
 window.__ModuleLoader__.load({
@@ -57,6 +58,7 @@ window.__ModuleLoader__.load({
       keyMissing: 'no key',
       tlsVerified: 'TLS verified',
       tlsInsecure: 'TLS unverified',
+      nav: 'TrueNAS',
       empty: 'No TrueNAS system configured yet. Add one with its address and the API key from TrueNAS.',
       loading: 'Loading…',
       unreachable: 'The settings service did not answer. Reload the page or restart DSH.',
@@ -111,6 +113,7 @@ window.__ModuleLoader__.load({
       keyMissing: '缺少密钥',
       tlsVerified: 'TLS 已验证',
       tlsInsecure: 'TLS 未校验',
+      nav: 'TrueNAS',
       empty: '还没有配置 TrueNAS 系统。填入地址和 TrueNAS 中生成的 API 密钥即可添加。',
       loading: '加载中…',
       unreachable: '设置服务没有响应。请刷新页面或重启 DSH。',
@@ -193,16 +196,18 @@ window.__ModuleLoader__.load({
       return ctx[name]
     }
 
+    function activeLocale(localeSvc) {
+      const snap = localeSvc && typeof localeSvc.getSnapshot === 'function' ? localeSvc.getSnapshot() : undefined
+      const active = snap && snap.active
+      if (typeof active === 'string' && active) return active
+      return typeof navigator !== 'undefined' ? String(navigator.language || '').slice(0, 2) : 'en'
+    }
+
     function useActiveLocale(ctx) {
       const localeSvc = getService(ctx, 'locale')
       return React.useSyncExternalStore(
         React.useCallback((cb) => (localeSvc && typeof localeSvc.subscribe === 'function' ? localeSvc.subscribe(cb) : () => {}), [localeSvc]),
-        React.useCallback(() => {
-          const snap = localeSvc && typeof localeSvc.getSnapshot === 'function' ? localeSvc.getSnapshot() : undefined
-          const active = snap && snap.active
-          if (typeof active === 'string' && active) return active
-          return typeof navigator !== 'undefined' ? String(navigator.language || '').slice(0, 2) : 'en'
-        }, [localeSvc]),
+        React.useCallback(() => activeLocale(localeSvc), [localeSvc]),
       )
     }
 
@@ -693,6 +698,29 @@ window.__ModuleLoader__.load({
       }
 
       if (slotsSvc && typeof slotsSvc.inject === 'function' && typeof slotsSvc.register === 'function') {
+        // Seat 1 — Settings → TrueNAS: one settings page whose label the shell
+        // renders in the settings navigation. This is the seat a person looks in
+        // first, so it is the primary entry point.
+        try {
+          slotsSvc.inject('settings.section', () =>
+            slotsSvc.register(
+              {
+                name: 'settings.section',
+                id: ROW_ID,
+                order: 40,
+                label: () => makeT(activeLocale(localeSvc))('nav'),
+                locale: NS,
+                inject: () => ({ ctx }),
+              },
+              (props) => React.createElement(ErrorBoundary, null, React.createElement(TrueNasCard, { ...props, ctx, view: 'page' })),
+            ),
+          )
+        } catch (error) {
+          console.warn('[dsh-truenas] settings section unavailable:', (error && error.message) || error)
+        }
+
+        // Seat 2 — Plugins → TrueNAS manager → its row: the same page reachable
+        // from the plugin that owns the configuration.
         try {
           slotsSvc.inject('plugins.row.config', () =>
             slotsSvc.register(
