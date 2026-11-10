@@ -32,7 +32,9 @@ function harness() {
     },
   }
   const create = (entry, apiKey) => {
-    const client = new TruenasClient({ ...entry, apiKey, timeoutMs: 5000 })
+    // The mock speaks plain HTTP; real TrueNAS would revoke a key presented that
+    // way, and the client refuses unless this test-only switch is set.
+    const client = new TruenasClient({ ...entry, apiKey, timeoutMs: 5000, allowInsecureApiKey: true })
     live.push(client)
     return client
   }

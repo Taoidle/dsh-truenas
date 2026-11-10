@@ -32,6 +32,7 @@ function clientFor(server, overrides = {}) {
     apiPath: '/api/current',
     insecureTls: false,
     timeoutMs: 5000,
+    allowInsecureApiKey: true,
     ...overrides,
   })
 }
@@ -282,51 +283,46 @@ test('a plain-HTTP listener is explained instead of surfacing an OpenSSL code', 
   const error = Object.assign(new Error('ssl3_get_record:wrong version number'), { code: 'EPROTO' })
   const text = explainConnectError(error, endpoint)
   assert.match(text, /plain HTTP/)
-  assert.match(text, /ws:\/\/192\.168\.2\.88:86/)
+  assert.match(text, /revokes an API key/)
+  assert.match(text, /HTTPS/)
 })
 
-test('with TLS verification skipped, a bare host:port falls back to plaintext once', async () => {
+test('a bare host:port that answers plain HTTP is refused with HTTPS guidance, even with skip-verify', async () => {
   const server = await new MockTruenas({ apiKey: '1-fallback', username: 'root' }).start()
   // `server.url` is http://127.0.0.1:<port>; strip the scheme to make the plugin
   // try TLS first, exactly like a user typing "192.168.2.88:86".
   const bare = server.url.replace(/^http:\/\//, '')
-  const client = new TruenasClient({ url: bare, username: 'root', apiKey: '1-fallback', insecureTls: true })
-  try {
-    const info = await client.request('system.info')
-    assert.equal(info.hostname, 'mock.test')
-    assert.match(client.transportNote || '', /plain HTTP/)
-    assert.match(client.displayUrl, /^http:\/\//)
-  } finally {
-    client.close()
-    await server.stop()
-  }
-})
-
-test('an explicit https:// address also falls back when TLS verification is skipped', async () => {
-  const server = await new MockTruenas({ apiKey: '1-fallback', username: 'root' }).start()
-  const host = server.url.replace(/^http:\/\//, '')
-  const client = new TruenasClient({ url: `https://${host}`, username: 'root', apiKey: '1-fallback', insecureTls: true })
-  try {
-    const info = await client.request('system.info')
-    assert.equal(info.hostname, 'mock.test')
-    assert.match(client.transportNote || '', /plain HTTP/)
-  } finally {
-    client.close()
-    await server.stop()
-  }
-})
-
-test('without skip-verify the fallback is refused and the error explains ws://', async () => {
-  const server = await new MockTruenas({ apiKey: '1-fallback', username: 'root' }).start()
-  const bare = server.url.replace(/^http:\/\//, '')
-  const client = new TruenasClient({ url: bare, username: 'root', apiKey: '1-fallback', insecureTls: false })
+  const client = new TruenasClient({ url: bare, username: 'root', apiKey: '1-fallback', insecureTls: true, allowInsecureApiKey: true })
   try {
     await assert.rejects(
       () => client.request('system.info'),
-      (error) => /plain HTTP/.test(error.message) && /ws:\/\//.test(error.message),
+      (error) => /plain HTTP/.test(error.message) && /revokes an API key/.test(error.message),
     )
   } finally {
     client.close()
     await server.stop()
   }
+})
+
+test('a plaintext endpoint is refused before the API key leaves the machine', async () => {
+  const server = await new MockTruenas({ apiKey: '1-fallback', username: 'root' }).start()
+  const client = new TruenasClient({ url: server.url, username: 'root', apiKey: '1-fallback', insecureTls: true })
+  try {
+    await assert.rejects(
+      () => client.request('system.info'),
+      (error) => /not encrypted/.test(error.message) && /revokes API keys/.test(error.message),
+    )
+  } finally {
+    client.close()
+    await server.stop()
+  }
+})
+
+test('an EXPIRED login response points at the insecure-transport revocation', async () => {
+  const client = new TruenasClient({ url: 'https://example.test', username: 'root', apiKey: '1-revoked', allowInsecureApiKey: true })
+  client.rawCall = async (method) => (method === 'auth.login_ex' ? { response_type: 'EXPIRED' } : false)
+  await assert.rejects(
+    () => client.login(),
+    (error) => /revoked/.test(error.message) && /unencrypted/.test(error.message),
+  )
 })

@@ -73,6 +73,16 @@ certificate verification for that instance only. Prefer installing the NAS
 certificate as trusted, or use a CA-signed certificate; the plugin asks Node to
 skip verification, so treat the flag as a deliberate trade-off.
 
+The connection still has to be TLS. TrueNAS **revokes an API key the moment it
+is presented over an unencrypted connection** (`middlewared`'s
+`login_ex_impl.py`: on `PAM_SUCCESS` with `not app.origin.secure_transport` it
+calls `api_key.revoke(..., 'Attempt to use over an insecure transport')` and
+answers `EXPIRED`). The plugin therefore refuses `http://` / `ws://` addresses
+before the key is sent. Enable HTTPS on the NAS itself (System Settings →
+General → GUI → HTTPS) or let a TLS proxy terminate *and* have middleware see a
+secure origin — a proxy that terminates TLS and forwards plain HTTP to
+middleware counts as insecure and will burn the key.
+
 ## Tools
 
 | Tool | Purpose |
@@ -234,10 +244,13 @@ masked client frames, JSON-RPC dispatch, jobs), so it needs no NAS.
   unloads.
 - A bare `host:port` is tried over TLS first. If that port turns out to speak
   plain HTTP (a reverse proxy on `:80`/`:86` — OpenSSL reports
-  `WRONG_VERSION_NUMBER`), enter the address as `ws://host:port` instead, or
-  tick **Skip TLS verification** and the plugin falls back to `ws://` on its own
-  and says so in the saved notice. Verification never stores an instance it
-  could not authenticate.
+  `WRONG_VERSION_NUMBER`), the plugin explains it and refuses to authenticate:
+  plaintext API-key login makes TrueNAS revoke the key on first use. Enable
+  HTTPS on the NAS or front it with a TLS listener that middleware treats as
+  secure, then point the plugin at that port. Verification never stores an
+  instance it could not authenticate.
+- A key that is already dead answers `Authentication failed: the API key ... is
+  expired or was revoked`; create a new one once the instance uses TLS.
 
 ## License
 

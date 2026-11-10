@@ -31,14 +31,14 @@ window.__ModuleLoader__.load({
       name: 'Name',
       nameHint: 'How tools refer to this system. Defaults to the host name.',
       address: 'Address',
-      addressHint: 'Web UI address, for example https://nas.lab.local or 192.168.1.10. For a plain-HTTP port (a reverse proxy on :86), write ws://192.168.1.10:86.',
+      addressHint: 'Web UI address, for example https://nas.lab.local or 192.168.1.10. API keys only work over TLS: enable HTTPS on the NAS or front it with a TLS proxy, and point this at the TLS port.',
       username: 'Username',
       usernameHint: 'The TrueNAS user that owns the API key.',
       apiKey: 'API key',
       apiKeyHint: 'Create one in TrueNAS under Credentials → API Keys.',
       apiKeyKeep: 'Leave blank to keep the stored key.',
       insecureTls: 'Skip TLS certificate verification',
-      insecureTlsHint: 'For a self-signed certificate; when the port is actually plain HTTP the plugin falls back to ws://.',
+      insecureTlsHint: 'For a self-signed certificate. This only skips certificate checks; the connection still has to be TLS.',
       advanced: 'Advanced',
       apiPath: 'API path',
       apiPathHint: 'WebSocket API path. Defaults to /api/current.',
@@ -86,14 +86,14 @@ window.__ModuleLoader__.load({
       name: '名称',
       nameHint: '工具引用这台系统时使用的名字，默认取主机名。',
       address: '地址',
-      addressHint: 'Web 界面地址，例如 https://nas.lab.local 或 192.168.1.10；若该端口是纯 HTTP（例如反代 :86），写成 ws://192.168.1.10:86。',
+      addressHint: 'Web 界面地址，例如 https://nas.lab.local 或 192.168.1.10。API 密钥只在加密连接上可用：请在 NAS 上启用 HTTPS，或前置一个 TLS 反代，然后填它的 TLS 端口。',
       username: '用户名',
       usernameHint: '拥有该 API 密钥的 TrueNAS 用户。',
       apiKey: 'API 密钥',
       apiKeyHint: '在 TrueNAS 的「凭据 → API 密钥」中创建。',
       apiKeyKeep: '留空则沿用已保存的密钥。',
       insecureTls: '跳过 TLS 证书校验',
-      insecureTlsHint: '用于自签名证书；勾选后若该端口其实是纯 HTTP，会自动改用 ws://。',
+      insecureTlsHint: '用于自签名证书。它只跳过证书校验，连接本身仍必须是 TLS。',
       advanced: '高级选项',
       apiPath: 'API 路径',
       apiPathHint: 'WebSocket API 路径，默认 /api/current。',
@@ -359,7 +359,7 @@ window.__ModuleLoader__.load({
             form.mode === 'add'
               ? t('noticeSaved', { name: result.instance, version: result.version })
               : t('noticeUpdated', { name: result.instance, version: result.version })
-          setNotice(result.transportNote ? `${base} · ${result.transportNote}` : base)
+          setNotice(base)
         } catch (error) {
           setForm((current) => (current ? { ...current, error: String((error && error.message) || error) } : current))
         } finally {
