@@ -302,6 +302,20 @@ test('with TLS verification skipped, a bare host:port falls back to plaintext on
   }
 })
 
+test('an explicit https:// address also falls back when TLS verification is skipped', async () => {
+  const server = await new MockTruenas({ apiKey: '1-fallback', username: 'root' }).start()
+  const host = server.url.replace(/^http:\/\//, '')
+  const client = new TruenasClient({ url: `https://${host}`, username: 'root', apiKey: '1-fallback', insecureTls: true })
+  try {
+    const info = await client.request('system.info')
+    assert.equal(info.hostname, 'mock.test')
+    assert.match(client.transportNote || '', /plain HTTP/)
+  } finally {
+    client.close()
+    await server.stop()
+  }
+})
+
 test('without skip-verify the fallback is refused and the error explains ws://', async () => {
   const server = await new MockTruenas({ apiKey: '1-fallback', username: 'root' }).start()
   const bare = server.url.replace(/^http:\/\//, '')
