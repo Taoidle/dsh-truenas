@@ -101,6 +101,7 @@ window.__ModuleLoader__.load({
       panelWorking: 'Working…',
       panelNoSystem: 'No TrueNAS system is configured yet. Add one in Settings → TrueNAS.',
       panelOffline: 'This system did not answer.',
+    panelStale: 'Refresh failed',
       panelUptime: 'up {value}',
       panelLoad: 'load {value}',
       panelUsedOf: '{used} of {total}',
@@ -187,6 +188,7 @@ window.__ModuleLoader__.load({
       panelWorking: '处理中…',
       panelNoSystem: '还没有配置 TrueNAS 系统。请在「设置 → TrueNAS」中添加。',
       panelOffline: '这台系统没有响应。',
+      panelStale: '刷新失败',
       panelUptime: '已运行 {value}',
       panelLoad: '负载 {value}',
       panelUsedOf: '{used} / {total}',
@@ -252,6 +254,7 @@ window.__ModuleLoader__.load({
 .dtn-barBad{background:var(--dsw-alias-label-error)}
 .dtn-section{display:flex;flex-direction:column;gap:6px}
 .dtn-sectionHead{display:flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.dtn-appList{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;padding-right:2px}
 .dtn-appRow{display:flex;align-items:center;gap:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 8px;background:var(--dsw-alias-bg-layer-2)}
 .dtn-appMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .dtn-appName{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -308,13 +311,23 @@ window.__ModuleLoader__.load({
       )
     }
 
+    // One translator per locale, kept for the life of the page. Components use
+    // `t` inside callbacks and effects, so a fresh function on every render
+    // would make those effects re-run forever (and hammer the host routes).
+    const translators = new Map()
+
     function makeT(locale) {
-      const dict = String(locale || '').startsWith('zh') ? zh : en
-      return (key, vars) => {
+      const cacheKey = String(locale || '')
+      const cached = translators.get(cacheKey)
+      if (cached) return cached
+      const dict = cacheKey.startsWith('zh') ? zh : en
+      const translate = (key, vars) => {
         let text = dict[key] || en[key] || key
         if (vars) for (const [name, value] of Object.entries(vars)) text = text.split(`{${name}}`).join(String(value ?? ''))
         return text
       }
+      translators.set(cacheKey, translate)
+      return translate
     }
 
     async function requestJson(path, body) {
@@ -846,16 +859,35 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = React.useState('')
       const [armed, setArmed] = React.useState('')
       const armTimer = React.useRef(null)
+      const inflight = React.useRef(false)
 
       const load = React.useCallback(
         async (instance, first) => {
+          // A slow NAS plus a 6 s interval must not stack requests.
+          if (inflight.current && !first) return
+          inflight.current = true
           if (first) setView((prev) => ({ ...prev, phase: prev.data ? 'ready' : 'loading' }))
+          const query = instance ? `?instance=${encodeURIComponent(instance)}` : ''
+          const attempt = () => requestJson(PANEL_PATH + query)
           try {
-            const query = instance ? `?instance=${encodeURIComponent(instance)}` : ''
-            const payload = await requestJson(PANEL_PATH + query)
-            setView({ phase: 'ready', data: payload, error: payload && payload.ok === false ? payload.error || t('panelOffline') : null })
+            let payload
+            try {
+              payload = await attempt()
+            } catch (error) {
+              // A busy browser drops requests with "Failed to fetch" /
+              // ERR_INSUFFICIENT_RESOURCES; one short retry rides that out.
+              await new Promise((resolve) => setTimeout(resolve, 400))
+              payload = await attempt()
+            }
+            setView({ phase: 'ready', data: payload, error: payload && payload.ok === false ? payload.error || t('panelOffline') : null, stale: false })
           } catch (error) {
-            setView((prev) => ({ phase: 'error', data: prev.data, error: String((error && error.message) || error) }))
+            const reason = String((error && error.message) || error)
+            const text = /fetch|network|load failed|abort/i.test(reason) ? t('panelOffline') : reason
+            // Once a snapshot is on screen a failed refresh must not blank it:
+            // mark it stale and let the next poll repair the view.
+            setView((prev) => (prev.data ? { ...prev, phase: 'ready', stale: true } : { phase: 'error', data: null, error: text }))
+          } finally {
+            inflight.current = false
           }
         },
         [t],
@@ -948,6 +980,7 @@ window.__ModuleLoader__.load({
               data.system.uptime ? h('span', null, t('panelUptime', { value: data.system.uptime })) : null,
               typeof data.system.load === 'number' ? h('span', null, t('panelLoad', { value: data.system.load.toFixed(2) })) : null,
               alerts.length ? h('span', { className: 'dtn-chip dtn-chipWarn' }, `${t('panelAlerts')} ${alerts.length}`) : null,
+              view.stale ? h('span', { className: 'dtn-chip' }, t('panelStale')) : null,
             )
           : null
 
@@ -987,7 +1020,10 @@ window.__ModuleLoader__.load({
               h('div', { className: 'dtn-sectionHead' }, t('panelApps'), running ? h('span', { className: 'dtn-chip dtn-chipOn' }, t('panelRuns', { count: running })) : null),
               apps.length === 0
                 ? h('p', { className: 'dtn-panelEmpty' }, t('panelNoApps'))
-                : apps.map((app) => {
+                : h(
+                    'div',
+                    { className: 'dtn-appList' },
+                    apps.map((app) => {
                     const stopped = app.state === 'STOPPED' || app.state === 'CRASHED'
                     const key = app.name
                     return h(
@@ -1026,6 +1062,7 @@ window.__ModuleLoader__.load({
                       ),
                     )
                   }),
+                  ),
             )
           : null
 
@@ -1153,26 +1190,54 @@ window.__ModuleLoader__.load({
         }
       }
 
-      // Right-sidebar panel. Better Sidebar is an optional companion plugin, so
-      // the tab appears only when its client service is present; the settings
-      // page keeps working either way.
-      const sidebarSvc = getService(ctx, 'betterSidebar')
-      if (sidebarSvc && typeof sidebarSvc.registerTab === 'function' && typeof ctx.effect === 'function') {
-        try {
-          ctx.effect(() =>
-            sidebarSvc.registerTab({
-              id: PANEL_TAB_ID,
-              order: 45,
-              single: true,
-              title: () => makeT(activeLocale(localeSvc))('panelTitle'),
-              description: () => makeT(activeLocale(localeSvc))('panelDesc'),
-              icon: (size) => PanelIcon(size),
-              component: (tabProps) => React.createElement(ErrorBoundary, null, React.createElement(PanelTab, { ...tabProps, ctx })),
-            }),
-          )
-        } catch (error) {
-          console.warn('[dsh-truenas] sidebar panel unavailable:', (error && error.message) || error)
-        }
+      // Right-sidebar panel. Better Sidebar is an optional companion plugin whose
+      // client service may be registered after ours loads, so wait for it briefly
+      // instead of giving up on the first lookup; the settings page keeps working
+      // either way.
+      if (typeof ctx.effect === 'function') {
+        ctx.effect(() => {
+          let stopped = false
+          let registered = false
+          let timer = null
+          let dispose = null
+          const startedAt = Date.now()
+
+          const attempt = () => {
+            if (stopped || registered) return
+            const service = getService(ctx, 'betterSidebar')
+            if (service && typeof service.registerTab === 'function') {
+              try {
+                dispose = service.registerTab({
+                  id: PANEL_TAB_ID,
+                  order: 45,
+                  single: true,
+                  title: () => makeT(activeLocale(localeSvc))('panelTitle'),
+                  description: () => makeT(activeLocale(localeSvc))('panelDesc'),
+                  icon: (size) => PanelIcon(size),
+                  component: (tabProps) => React.createElement(ErrorBoundary, null, React.createElement(PanelTab, { ...tabProps, ctx })),
+                })
+                registered = true
+                return
+              } catch (error) {
+                console.warn('[dsh-truenas] sidebar panel unavailable:', (error && error.message) || error)
+              }
+            }
+            if (Date.now() - startedAt > 20000) {
+              console.warn('[dsh-truenas] sidebar panel unavailable: betterSidebar service did not appear')
+              return
+            }
+            timer = setTimeout(attempt, 300)
+          }
+
+          attempt()
+
+          return () => {
+            stopped = true
+            if (timer) clearTimeout(timer)
+            if (typeof dispose === 'function') dispose()
+            else if (dispose && typeof dispose.dispose === 'function') dispose.dispose()
+          }
+        }, 'dsh-truenas: sidebar panel')
       }
     }
 

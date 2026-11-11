@@ -7,6 +7,7 @@
  */
 
 import net from 'node:net'
+import tls from 'node:tls'
 import crypto from 'node:crypto'
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
@@ -84,6 +85,7 @@ export class MockTruenas {
     this.username = options.username ?? 'root'
     this.serverId = options.serverId ?? 'mock'
     this.legacyOnly = options.legacyOnly === true
+    this.tls = options.tls || undefined
     this.connections = new Set()
     this.calls = []
     this.jobs = new Map()
@@ -108,7 +110,7 @@ export class MockTruenas {
   }
 
   get url() {
-    return `http://127.0.0.1:${this.port}`
+    return `${this.tls ? 'https' : 'http'}://127.0.0.1:${this.port}`
   }
 
   async stop() {
@@ -117,7 +119,12 @@ export class MockTruenas {
     await new Promise((resolve) => this.server.close(resolve))
   }
 
-  handleSocket(socket) {
+  handleSocket(rawSocket) {
+    const socket = this.tls ? new tls.TLSSocket(rawSocket, { isServer: true, secureContext: tls.createSecureContext(this.tls) }) : rawSocket
+    if (this.tls) {
+      socket.on('error', () => rawSocket.destroy())
+      rawSocket.on('error', () => socket.destroy())
+    }
     let buffered = Buffer.alloc(0)
     let upgraded = false
     const state = { authed: false, username: this.username }
@@ -256,6 +263,37 @@ export class MockTruenas {
       return this.respond(socket, id, jobId)
     }
 
+    if (method === 'reporting.get_data') {
+      const now = Math.floor(Date.now() / 1000)
+      return this.respond(socket, id, [
+        { name: 'cpu', identifier: null, data: [[now - 60, 18, 24, 12], [now, 22, 31, 16]] },
+        { name: 'memory', identifier: null, data: [[now - 60, 6 * 1024 ** 3], [now, 7 * 1024 ** 3]] },
+        { name: 'cputemp', identifier: null, data: [[now - 60, 40], [now, 43]] },
+      ])
+    }
+
+    if (method === 'pool.query') {
+      return this.respond(socket, id, [
+        { name: 'tank', status: 'ONLINE', healthy: true, size: 4 * 1024 ** 4, allocated: 1024 ** 4, free: 3 * 1024 ** 4 },
+      ])
+    }
+
+    if (method === 'alert.list') {
+      return this.respond(socket, id, [
+        { uuid: 'mock-alert-1', level: 'WARNING', text: 'Pool tank has a failed disk', formatted: 'Pool tank has a failed disk', dismissed: false },
+      ])
+    }
+
+    if (method === 'alert.dismiss') return this.respond(socket, id, null)
+
+    if (method === 'app.query') {
+      if (this.apps.length) return this.respond(socket, id, this.apps)
+      return this.respond(socket, id, [
+        { name: 'forgejo', state: 'RUNNING', human_version: '9.0.1', upgrade_available: false },
+        { name: 'plex', state: 'STOPPED', human_version: '1.41.0', upgrade_available: true, latest_version: '1.41.2' },
+      ])
+    }
+
     if (method === 'app.registry.query') return this.respond(socket, id, this.registries)
 
     if (method === 'app.registry.create') {
@@ -330,6 +368,14 @@ export class MockTruenas {
       const filters = Array.isArray(args[0]) ? args[0] : []
       const triple = Array.isArray(filters[0]) ? filters[0] : filters
       const wanted = Array.isArray(triple) && triple[0] === 'id' ? triple[2] : undefined
+      if (triple[0] === 'state') {
+        const running = [...this.jobs.values()].filter((job) => job.state === 'RUNNING')
+        return this.respond(
+          socket,
+          id,
+          running.map((job) => ({ id: job.id, method: 'mock.job', state: job.state, progress: { percent: 55, description: 'working' } })),
+        )
+      }
       const job = this.jobs.get(wanted)
       if (!job) return this.respond(socket, id, [])
       job.polls += 1

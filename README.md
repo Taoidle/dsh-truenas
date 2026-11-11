@@ -104,6 +104,14 @@ so a hidden panel costs nothing. `app.delete` is refused unless the request
 carries `confirm: true`; the UI arms the button for five seconds instead of
 using a native dialog.
 
+Metrics come from `reporting.get_data` over a 20-second window, because TrueNAS
+only accepts `HOUR`/`DAY`/`WEEK`/`MONTH`/`YEAR` units and an hourly page is over
+a megabyte. CPU is the sum of the per-core shares in the newest row, memory is
+`physmem − available`, and the temperature card shows `—` on hardware that
+exposes no CPU sensor (both test systems do). A dropped poll (a busy browser can
+return `Failed to fetch`) is retried once; if the retry also fails the last
+snapshot stays on screen and the status line shows `Refresh failed`.
+
 Everything else (pools, snapshots, shares, tasks, replication, cloud, alerts,
 Docker, privileges) stays available to the agent through the tools below.
 

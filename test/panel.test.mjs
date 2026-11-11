@@ -51,9 +51,9 @@ const healthy = {
     loadavg: [0.5, 0.4, 0.2],
   },
   'reporting.get_data': [
-    { name: 'cpu', identifier: null, data: [[1, 10, 20], [2, 30, 40]] },
-    { name: 'memory', identifier: null, data: [[1, 4 * GIB]] },
-    { name: 'cputemp', identifier: null, data: [[1, 42]] },
+    { name: 'cpu', identifier: 'cpu', legend: ['time', 'cpu0', 'cpu1'], data: [[1, 10, 20], [2, 30, 40]] },
+    { name: 'memory', identifier: 'memory', legend: ['time', 'available'], data: [[1, 12 * GIB], [2, 12 * GIB]] },
+    { name: 'cputemp', identifier: 'cputemp', legend: ['time', 'cpu0'], data: [[1, 42], [2, 43]] },
   ],
   'pool.query': [{ name: 'tank', status: 'ONLINE', healthy: true, size: 1000, allocated: 250, free: 750 }],
   'app.query': [
@@ -74,10 +74,10 @@ test('overview summarises cards, apps, jobs and alerts', async () => {
   assert.equal(state.ok, true)
   assert.equal(state.selected, 'lab-nas')
   assert.equal(state.system.hostname, 'nas')
-  assert.equal(state.cards.cpu.percent, 35)
+  assert.equal(state.cards.cpu.percent, 70)
   assert.equal(state.cards.memory.percent, 25)
   assert.equal(state.cards.memory.used, 4 * GIB)
-  assert.equal(state.cards.temperature.celsius, 42)
+  assert.equal(state.cards.temperature.celsius, 43)
   assert.equal(state.cards.pool.percent, 25)
   assert.equal(state.cards.pool.name, 'tank')
   assert.deepEqual(state.apps.map((app) => app.name), ['forgejo', 'plex'])
