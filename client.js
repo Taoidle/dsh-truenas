@@ -75,6 +75,37 @@ window.__ModuleLoader__.load({
       fieldsRequired: 'Address and API key are required.',
       hostname: 'Hostname',
       version: 'Version',
+      panelTitle: 'TrueNAS overview',
+      panelDesc: 'Live CPU, memory, pools, apps, jobs and alerts for one TrueNAS system.',
+      panelSystem: 'System',
+      panelRefresh: 'Refresh',
+      panelOpen: 'Open web UI',
+      panelCpu: 'CPU',
+      panelMemory: 'Memory',
+      panelPool: 'Pool',
+      panelTemp: 'Temperature',
+      panelApps: 'Applications',
+      panelJobs: 'Jobs',
+      panelAlerts: 'Alerts',
+      panelNoApps: 'No applications installed.',
+      panelNoJobs: 'No job is running.',
+      panelNoAlerts: 'No open alert.',
+      panelStart: 'Start',
+      panelStop: 'Stop',
+      panelRestart: 'Restart',
+      panelUpdate: 'Update',
+      panelDelete: 'Delete',
+      panelConfirmDelete: 'Click again to delete',
+      panelAbort: 'Abort',
+      panelDismiss: 'Dismiss',
+      panelWorking: 'Working…',
+      panelNoSystem: 'No TrueNAS system is configured yet. Add one in Settings → TrueNAS.',
+      panelOffline: 'This system did not answer.',
+      panelUptime: 'up {value}',
+      panelLoad: 'load {value}',
+      panelUsedOf: '{used} of {total}',
+      panelRuns: '{count} running',
+      panelNotReady: 'Open Settings → TrueNAS to finish configuring this system.',
     }
 
     const zh = {
@@ -130,6 +161,37 @@ window.__ModuleLoader__.load({
       fieldsRequired: '地址和 API 密钥不能为空。',
       hostname: '主机名',
       version: '版本',
+      panelTitle: 'TrueNAS 概览',
+      panelDesc: '一台 TrueNAS 的实时 CPU、内存、存储池、应用、作业与告警。',
+      panelSystem: '系统',
+      panelRefresh: '刷新',
+      panelOpen: '打开 Web UI',
+      panelCpu: 'CPU',
+      panelMemory: '内存',
+      panelPool: '存储池',
+      panelTemp: '温度',
+      panelApps: '应用',
+      panelJobs: '作业',
+      panelAlerts: '告警',
+      panelNoApps: '尚未安装应用。',
+      panelNoJobs: '没有正在运行的作业。',
+      panelNoAlerts: '没有未处理的告警。',
+      panelStart: '启动',
+      panelStop: '停止',
+      panelRestart: '重启',
+      panelUpdate: '更新',
+      panelDelete: '删除',
+      panelConfirmDelete: '再次点击确认删除',
+      panelAbort: '中止',
+      panelDismiss: '忽略',
+      panelWorking: '处理中…',
+      panelNoSystem: '还没有配置 TrueNAS 系统。请在「设置 → TrueNAS」中添加。',
+      panelOffline: '这台系统没有响应。',
+      panelUptime: '已运行 {value}',
+      panelLoad: '负载 {value}',
+      panelUsedOf: '{used} / {total}',
+      panelRuns: '{count} 个运行中',
+      panelNotReady: '请在「设置 → TrueNAS」中完成这台系统的配置。',
     }
 
     const css = `
@@ -172,6 +234,41 @@ window.__ModuleLoader__.load({
 .dtn-muted{color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5;margin:0}
 .dtn-empty{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.6;border:1px dashed var(--dsw-alias-border-l2);border-radius:10px;padding:14px;text-align:center;margin:0}
 .dtn-summary{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5;margin:0}
+.dtn-panel{display:flex;flex-direction:column;gap:12px;padding:12px;height:100%;box-sizing:border-box;overflow:auto;color:var(--dsw-alias-label-primary);font-size:12px}
+.dtn-panelHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dtn-panelSelect{height:28px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;padding:0 8px;max-width:100%}
+.dtn-panelSpacer{flex:1}
+.dtn-panelStatus{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--dsw-alias-label-secondary);font-size:11px}
+.dtn-dot{width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-state-success-primary);display:inline-block}
+.dtn-dotOff{background:var(--dsw-alias-label-error)}
+.dtn-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.dtn-panelCard{border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2);padding:9px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.dtn-cardLabel{color:var(--dsw-alias-label-secondary);font-size:11px}
+.dtn-cardValue{font-size:18px;font-weight:600;line-height:1.25}
+.dtn-cardSub{color:var(--dsw-alias-label-dimmed);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dtn-bar{height:3px;border-radius:999px;background:var(--dsw-alias-bg-module-platform);overflow:hidden;margin-top:4px}
+.dtn-barFill{height:100%;background:var(--dsw-alias-state-success-primary);border-radius:999px}
+.dtn-barWarn{background:var(--dsw-alias-state-warning-primary)}
+.dtn-barBad{background:var(--dsw-alias-label-error)}
+.dtn-section{display:flex;flex-direction:column;gap:6px}
+.dtn-sectionHead{display:flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.dtn-appRow{display:flex;align-items:center;gap:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 8px;background:var(--dsw-alias-bg-layer-2)}
+.dtn-appMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.dtn-appName{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dtn-appMeta{color:var(--dsw-alias-label-dimmed);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dtn-appActions{display:flex;gap:4px;flex-shrink:0}
+.dtn-chip{font-size:10px;line-height:16px;padding:0 6px;border-radius:999px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary)}
+.dtn-chipOn{color:var(--dsw-alias-state-success-primary)}
+.dtn-chipWarn{color:var(--dsw-alias-state-warning-primary)}
+.dtn-chipBad{color:var(--dsw-alias-label-error)}
+.dtn-miniBtn{appearance:none;border:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-primary);border-radius:6px;font:inherit;font-size:10px;line-height:1;padding:4px 6px;cursor:pointer;white-space:nowrap}
+.dtn-miniBtn:hover{border-color:var(--dsw-alias-label-dimmed)}
+.dtn-miniBtn:disabled{opacity:.4;cursor:default}
+.dtn-miniBtnDanger{color:var(--dsw-alias-label-error)}
+.dtn-miniBtnArmed{color:var(--dsw-alias-bg-layer-3);background:var(--dsw-alias-label-error);border-color:transparent}
+.dtn-panelEmpty{color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5;margin:0;padding:6px 0}
+.dtn-alertRow{display:flex;align-items:flex-start;gap:6px;border-left:2px solid var(--dsw-alias-state-warning-primary);padding:4px 0 4px 8px}
+.dtn-alertText{flex:1;min-width:0;font-size:11px;line-height:1.45;color:var(--dsw-alias-label-primary);word-break:break-word}
 .dtn-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 `
 
@@ -678,6 +775,324 @@ window.__ModuleLoader__.load({
       }
     }
 
+
+    const PANEL_PATH = '/dsh-truenas/panel'
+    const PANEL_ACTION_PATH = '/dsh-truenas/panel/action'
+    const PANEL_TAB_ID = 'dsh-truenas:panel'
+    const PANEL_REFRESH_MS = 6000
+    const PANEL_ARM_MS = 5000
+
+    function PanelIcon(size) {
+      const px = Number(size) || 16
+      return React.createElement(
+        'svg',
+        { width: px, height: px, viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': 'true' },
+        React.createElement('rect', { x: 3, y: 4, width: 18, height: 7, rx: 2, stroke: 'currentColor', strokeWidth: 1.6 }),
+        React.createElement('rect', { x: 3, y: 13, width: 18, height: 7, rx: 2, stroke: 'currentColor', strokeWidth: 1.6 }),
+        React.createElement('circle', { cx: 7, cy: 7.5, r: 1.1, fill: 'currentColor' }),
+        React.createElement('circle', { cx: 7, cy: 16.5, r: 1.1, fill: 'currentColor' }),
+      )
+    }
+
+    function percentText(value) {
+      return typeof value === 'number' && Number.isFinite(value) ? `${Math.round(value)}%` : '—'
+    }
+
+    function barClass(percent) {
+      if (typeof percent !== 'number') return 'dtn-barFill'
+      if (percent >= 90) return 'dtn-barFill dtn-barBad'
+      if (percent >= 75) return 'dtn-barFill dtn-barWarn'
+      return 'dtn-barFill'
+    }
+
+    function humanBytes(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return ''
+      const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+      let index = 0
+      let size = Math.abs(value)
+      while (size >= 1024 && index < units.length - 1) {
+        size /= 1024
+        index += 1
+      }
+      const digits = size >= 100 ? 0 : size >= 10 ? 1 : 2
+      return `${size.toFixed(digits)} ${units[index]}`
+    }
+
+    function PanelCard(props) {
+      return React.createElement(
+        'div',
+        { className: 'dtn-panelCard' },
+        React.createElement('span', { className: 'dtn-cardLabel' }, props.label),
+        React.createElement('span', { className: 'dtn-cardValue' }, props.value),
+        props.sub ? React.createElement('span', { className: 'dtn-cardSub' }, props.sub) : null,
+        typeof props.percent === 'number'
+          ? React.createElement(
+              'div',
+              { className: 'dtn-bar' },
+              React.createElement('div', { className: barClass(props.percent), style: { width: `${Math.max(2, Math.min(100, props.percent))}%` } }),
+            )
+          : null,
+      )
+    }
+
+    function PanelTab(props) {
+      const ctx = props.ctx
+      const h = React.createElement
+      const t = makeT(useActiveLocale(ctx))
+      const visible = props.visible !== false
+      const [selected, setSelected] = React.useState('')
+      const [view, setView] = React.useState({ phase: 'loading', data: null, error: null })
+      const [busy, setBusy] = React.useState('')
+      const [notice, setNotice] = React.useState('')
+      const [armed, setArmed] = React.useState('')
+      const armTimer = React.useRef(null)
+
+      const load = React.useCallback(
+        async (instance, first) => {
+          if (first) setView((prev) => ({ ...prev, phase: prev.data ? 'ready' : 'loading' }))
+          try {
+            const query = instance ? `?instance=${encodeURIComponent(instance)}` : ''
+            const payload = await requestJson(PANEL_PATH + query)
+            setView({ phase: 'ready', data: payload, error: payload && payload.ok === false ? payload.error || t('panelOffline') : null })
+          } catch (error) {
+            setView((prev) => ({ phase: 'error', data: prev.data, error: String((error && error.message) || error) }))
+          }
+        },
+        [t],
+      )
+
+      React.useEffect(() => {
+        if (!visible) return undefined
+        load(selected, true)
+        const id = setInterval(() => load(selected, false), PANEL_REFRESH_MS)
+        return () => clearInterval(id)
+      }, [visible, selected, load])
+
+      React.useEffect(
+        () => () => {
+          if (armTimer.current) clearTimeout(armTimer.current)
+        },
+        [],
+      )
+
+      const data = view.data
+      const instances = data && Array.isArray(data.instances) ? data.instances : []
+      const current = (data && data.selected) || selected || (instances[0] && instances[0].name) || ''
+      const entry = instances.find((item) => item.name === current)
+      const cards = (data && data.cards) || {}
+      const apps = (data && Array.isArray(data.apps) ? data.apps : []).slice(0, 40)
+      const jobs = (data && Array.isArray(data.jobs) ? data.jobs : []).slice(0, 5)
+      const alerts = (data && Array.isArray(data.alerts) ? data.alerts : []).slice(0, 4)
+      const running = apps.filter((app) => app.state === 'RUNNING').length
+
+      async function act(action, extra) {
+        const key = `${action}:${(extra && (extra.name || extra.id || extra.uuid)) || ''}`
+        if (action === 'app.delete' && armed !== key) {
+          setArmed(key)
+          if (armTimer.current) clearTimeout(armTimer.current)
+          armTimer.current = setTimeout(() => setArmed(''), PANEL_ARM_MS)
+          return
+        }
+        setArmed('')
+        setBusy(key)
+        setNotice('')
+        try {
+          const body = { action, instance: current, ...(extra || {}) }
+          const result = await requestJson(PANEL_ACTION_PATH, body)
+          setNotice(result && result.ok === false ? result.error || 'Failed' : (result && result.message) || '')
+          await load(selected, false)
+        } catch (error) {
+          setNotice(String((error && error.message) || error))
+        } finally {
+          setBusy('')
+        }
+      }
+
+      const head = h(
+        'div',
+        { className: 'dtn-panelHead' },
+        instances.length > 1
+          ? h(
+              'select',
+              {
+                className: 'dtn-panelSelect',
+                value: current,
+                'aria-label': t('panelSystem'),
+                onChange: (event) => {
+                  setSelected(event.target.value)
+                  setNotice('')
+                },
+              },
+              instances.map((item) => h('option', { key: item.name, value: item.name }, item.default ? `${item.name} · ${t('defaultBadge')}` : item.name)),
+            )
+          : h('span', { className: 'dtn-appName' }, current || t('panelSystem')),
+        h('span', { className: 'dtn-panelSpacer' }),
+        entry && entry.url
+          ? h('a', { className: 'dtn-miniBtn', href: entry.url, target: '_blank', rel: 'noreferrer' }, t('panelOpen'))
+          : null,
+        h(
+          'button',
+          { type: 'button', className: 'dtn-miniBtn', disabled: view.phase === 'loading', onClick: () => load(selected, false) },
+          t('panelRefresh'),
+        ),
+      )
+
+      const status =
+        data && data.ok && data.system
+          ? h(
+              'div',
+              { className: 'dtn-panelStatus' },
+              h('span', { className: `dtn-dot${alerts.length ? '' : ''}` }),
+              h('span', null, data.system.hostname || ''),
+              h('span', null, `TrueNAS ${data.system.version || ''}`),
+              data.system.uptime ? h('span', null, t('panelUptime', { value: data.system.uptime })) : null,
+              typeof data.system.load === 'number' ? h('span', null, t('panelLoad', { value: data.system.load.toFixed(2) })) : null,
+              alerts.length ? h('span', { className: 'dtn-chip dtn-chipWarn' }, `${t('panelAlerts')} ${alerts.length}`) : null,
+            )
+          : null
+
+      const cardNodes =
+        data && data.ok
+          ? h(
+              'div',
+              { className: 'dtn-cards' },
+              h(PanelCard, { label: t('panelCpu'), value: percentText(cards.cpu && cards.cpu.percent), percent: cards.cpu && cards.cpu.percent }),
+              h(PanelCard, {
+                label: t('panelMemory'),
+                value: percentText(cards.memory && cards.memory.percent),
+                sub:
+                  cards.memory && cards.memory.used && cards.memory.total
+                    ? t('panelUsedOf', { used: humanBytes(cards.memory.used), total: humanBytes(cards.memory.total) })
+                    : '',
+                percent: cards.memory && cards.memory.percent,
+              }),
+              h(PanelCard, {
+                label: t('panelPool'),
+                value: cards.pool ? percentText(cards.pool.percent) : '—',
+                sub: cards.pool ? `${cards.pool.name} · ${cards.pool.status || ''}` : '',
+                percent: cards.pool && cards.pool.percent,
+              }),
+              h(PanelCard, {
+                label: t('panelTemp'),
+                value: cards.temperature && typeof cards.temperature.celsius === 'number' ? `${Math.round(cards.temperature.celsius)}°C` : '—',
+              }),
+            )
+          : null
+
+      const appSection =
+        data && data.ok
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelApps'), running ? h('span', { className: 'dtn-chip dtn-chipOn' }, t('panelRuns', { count: running })) : null),
+              apps.length === 0
+                ? h('p', { className: 'dtn-panelEmpty' }, t('panelNoApps'))
+                : apps.map((app) => {
+                    const stopped = app.state === 'STOPPED' || app.state === 'CRASHED'
+                    const key = app.name
+                    return h(
+                      'div',
+                      { className: 'dtn-appRow', key },
+                      h(
+                        'div',
+                        { className: 'dtn-appMain' },
+                        h('span', { className: 'dtn-appName' }, app.name),
+                        h(
+                          'span',
+                          { className: 'dtn-appMeta' },
+                          `${app.state}${app.version ? ` · ${app.version}` : ''}${app.upgradeAvailable ? ` · ${t('panelUpdate')} ${app.latestVersion || ''}` : ''}`,
+                        ),
+                      ),
+                      h(
+                        'div',
+                        { className: 'dtn-appActions' },
+                        stopped
+                          ? h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('app.start', { name: app.name }) }, t('panelStart'))
+                          : h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('app.stop', { name: app.name }) }, t('panelStop')),
+                        h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('app.restart', { name: app.name }) }, t('panelRestart')),
+                        app.upgradeAvailable
+                          ? h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('app.upgrade', { name: app.name }) }, t('panelUpdate'))
+                          : null,
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: `dtn-miniBtn dtn-miniBtnDanger${armed === `app.delete:${key}` ? ' dtn-miniBtnArmed' : ''}`,
+                            disabled: busy === `app.delete:${key}`,
+                            onClick: () => act('app.delete', { name: app.name }),
+                          },
+                          armed === `app.delete:${key}` ? t('panelConfirmDelete') : t('panelDelete'),
+                        ),
+                      ),
+                    )
+                  }),
+            )
+          : null
+
+      const jobSection =
+        data && data.ok && jobs.length
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelJobs')),
+              jobs.map((job) =>
+                h(
+                  'div',
+                  { className: 'dtn-appRow', key: job.id },
+                  h(
+                    'div',
+                    { className: 'dtn-appMain' },
+                    h('span', { className: 'dtn-appName' }, job.method),
+                    h('span', { className: 'dtn-appMeta' }, `${job.state}${typeof job.percent === 'number' ? ` · ${Math.round(job.percent)}%` : ''}${job.description ? ` · ${job.description}` : ''}`),
+                    typeof job.percent === 'number'
+                      ? h('div', { className: 'dtn-bar' }, h('div', { className: barClass(job.percent), style: { width: `${Math.max(2, Math.min(100, job.percent))}%` } }))
+                      : null,
+                  ),
+                  h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('job.abort', { id: job.id }) }, t('panelAbort')),
+                ),
+              ),
+            )
+          : null
+
+      const alertSection =
+        data && data.ok && alerts.length
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelAlerts'), h('span', { className: 'dtn-chip dtn-chipWarn' }, String(alerts.length))),
+              alerts.map((alert) =>
+                h(
+                  'div',
+                  { className: 'dtn-alertRow', key: alert.uuid },
+                  h('span', { className: 'dtn-alertText' }, `${alert.level}: ${alert.text}`),
+                  h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('alert.dismiss', { uuid: alert.uuid }) }, t('panelDismiss')),
+                ),
+              ),
+            )
+          : null
+
+      const empty =
+        data && data.configured === 0
+          ? h('p', { className: 'dtn-panelEmpty' }, t('panelNoSystem'))
+          : data && data.ok && !data.selected
+            ? h('p', { className: 'dtn-panelEmpty' }, t('panelNotReady'))
+            : null
+
+      return h(
+        'div',
+        { className: 'dtn-panel' },
+        head,
+        view.error ? h('p', { className: 'dtn-msg dtn-err', role: 'alert' }, view.error) : null,
+        notice ? h('p', { className: 'dtn-msg' }, notice) : null,
+        empty,
+        status,
+        cardNodes,
+        appSection,
+        jobSection,
+        alertSection,
+      )
+    }
+
     function apply(ctx) {
       ensureStyle()
       const localeSvc = getService(ctx, 'locale')
@@ -735,6 +1150,28 @@ window.__ModuleLoader__.load({
           )
         } catch (error) {
           console.warn('[dsh-truenas] settings seat unavailable:', (error && error.message) || error)
+        }
+      }
+
+      // Right-sidebar panel. Better Sidebar is an optional companion plugin, so
+      // the tab appears only when its client service is present; the settings
+      // page keeps working either way.
+      const sidebarSvc = getService(ctx, 'betterSidebar')
+      if (sidebarSvc && typeof sidebarSvc.registerTab === 'function' && typeof ctx.effect === 'function') {
+        try {
+          ctx.effect(() =>
+            sidebarSvc.registerTab({
+              id: PANEL_TAB_ID,
+              order: 45,
+              single: true,
+              title: () => makeT(activeLocale(localeSvc))('panelTitle'),
+              description: () => makeT(activeLocale(localeSvc))('panelDesc'),
+              icon: (size) => PanelIcon(size),
+              component: (tabProps) => React.createElement(ErrorBoundary, null, React.createElement(PanelTab, { ...tabProps, ctx })),
+            }),
+          )
+        } catch (error) {
+          console.warn('[dsh-truenas] sidebar panel unavailable:', (error && error.message) || error)
         }
       }
     }

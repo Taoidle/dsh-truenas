@@ -83,6 +83,30 @@ General → GUI → HTTPS) or let a TLS proxy terminate *and* have middleware se
 secure origin — a proxy that terminates TLS and forwards plain HTTP to
 middleware counts as insecure and will burn the key.
 
+## Right-sidebar panel
+
+With the [Better Sidebar](https://www.npmjs.com/package/dsh-better-sidebar) plugin
+installed, this bundle adds a **TrueNAS overview** tab to the right sidebar. It
+shows one system at a time (a dropdown switches when several are configured):
+
+- cards for CPU, memory, the busiest pool and CPU temperature, with a load bar;
+- installed applications with `Start` / `Stop` / `Restart` / `Update`, and
+  `Delete` behind a second click;
+- running jobs with a progress bar and an `Abort` button;
+- open alerts with `Dismiss`.
+
+The panel never talks to a NAS from the browser. It polls two same-origin
+routes — `GET /dsh-truenas/panel?instance=<name>` and
+`POST /dsh-truenas/panel/action` — which reuse the plugin's pooled WebSocket
+client. Reads are cached for four seconds on the host and the browser only polls
+while the tab is visible (`visible` from Better Sidebar's `TabComponentProps`),
+so a hidden panel costs nothing. `app.delete` is refused unless the request
+carries `confirm: true`; the UI arms the button for five seconds instead of
+using a native dialog.
+
+Everything else (pools, snapshots, shares, tasks, replication, cloud, alerts,
+Docker, privileges) stays available to the agent through the tools below.
+
 ## Tools
 
 | Tool | Purpose |

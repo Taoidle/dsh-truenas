@@ -13,6 +13,7 @@ import z from '@deepseek-ai/schemastery'
 import { TruenasClient } from './lib/truenas.js'
 import { createAdmin } from './lib/admin.js'
 import { registerRoutes } from './lib/routes.js'
+import { createPanel } from './lib/panel.js'
 import { createTools } from './lib/tools.js'
 import { normalizeInstance } from './lib/instances.js'
 
@@ -227,11 +228,13 @@ export function apply(ctx, config) {
 
   // One administration surface for both the agent tools and the settings page.
   const admin = createAdmin({ store, pool })
+  // The sidebar panel reads through the same pool; it caches for a few seconds.
+  const panel = createPanel({ store, pool, getConfig: readConfig })
 
   // The settings page lives on the DSH web origin and needs same-origin routes.
   // A headless host has no web server, in which case the page simply stays absent.
   ctx.effect(() => {
-    const routes = registerRoutes(ctx, admin)
+    const routes = registerRoutes(ctx, admin, panel)
     return () => {
       for (const dispose of routes.disposers || []) {
         try {
