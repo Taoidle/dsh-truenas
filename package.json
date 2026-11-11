@@ -1,6 +1,6 @@
 {
   "name": "dsh-truenas",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "Manage one or more TrueNAS systems from DSH over the JSON-RPC 2.0 WebSocket API.",
   "type": "module",

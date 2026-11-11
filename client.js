@@ -87,6 +87,17 @@ window.__ModuleLoader__.load({
       panelApps: 'Applications',
       panelJobs: 'Jobs',
       panelAlerts: 'Alerts',
+      panelSnapshots: 'Snapshots',
+      panelNoSnapshots: 'No snapshots yet.',
+      panelReplication: 'Replication',
+      panelNoReplication: 'No replication tasks.',
+      panelCloud: 'Cloud sync',
+      panelNoCloud: 'No cloud tasks.',
+      panelNetwork: 'Network',
+      panelVms: 'Virtual machines',
+      panelNoVms: 'No virtual machines.',
+      panelIscsi: 'iSCSI',
+      panelUps: 'UPS',
       panelPools: 'Pools',
       panelNoPools: 'No pools on this system.',
       panelServices: 'Services',
@@ -191,6 +202,17 @@ window.__ModuleLoader__.load({
       panelApps: '应用',
       panelJobs: '作业',
       panelAlerts: '告警',
+      panelSnapshots: '快照',
+      panelNoSnapshots: '还没有快照。',
+      panelReplication: '复制',
+      panelNoReplication: '没有复制任务。',
+      panelCloud: '云同步',
+      panelNoCloud: '没有云任务。',
+      panelNetwork: '网络',
+      panelVms: '虚拟机',
+      panelNoVms: '没有虚拟机。',
+      panelIscsi: 'iSCSI',
+      panelUps: 'UPS',
       panelPools: '存储池',
       panelNoPools: '这台系统上没有存储池。',
       panelServices: '服务',
@@ -1010,11 +1032,18 @@ window.__ModuleLoader__.load({
       const services = (data && Array.isArray(data.services) ? data.services : []).slice(0, 40)
       const certificates = data && Array.isArray(data.certificates) ? data.certificates : []
       const disks = data && Array.isArray(data.disks) ? data.disks : []
+      const snapshots = data && Array.isArray(data.snapshots) ? data.snapshots : []
+      const replication = data && Array.isArray(data.replication) ? data.replication : []
+      const cloud = data && Array.isArray(data.cloud) ? data.cloud : []
+      const network = data && Array.isArray(data.network) ? data.network : []
+      const vms = data && Array.isArray(data.vms) ? data.vms : []
+      const iscsi = (data && data.iscsi) || { targets: 0, sessions: 0, names: [] }
+      const ups = (data && data.ups) || null
       const running = apps.filter((app) => app.state === 'RUNNING').length
 
       async function act(action, extra) {
         const key = `${action}:${(extra && (extra.name || extra.id || extra.uuid)) || ''}`
-        if (action === 'app.delete' && armed !== key) {
+        if ((action === 'app.delete' || action === 'snapshot.delete') && armed !== key) {
           setArmed(key)
           if (armTimer.current) clearTimeout(armTimer.current)
           armTimer.current = setTimeout(() => setArmed(''), PANEL_ARM_MS)
@@ -1025,6 +1054,7 @@ window.__ModuleLoader__.load({
         setNotice('')
         try {
           const body = { action, instance: current, ...(extra || {}) }
+          if (action === 'app.delete' || action === 'snapshot.delete') body.confirm = true
           const result = await requestJson(PANEL_ACTION_PATH, body)
           setNotice(result && result.ok === false ? result.error || 'Failed' : (result && result.message) || '')
           await load(selected, false)
@@ -1343,6 +1373,175 @@ window.__ModuleLoader__.load({
             )
           : null
 
+      const snapshotSection =
+        data && data.ok
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelSnapshots'), snapshots.length ? h('span', { className: 'dtn-chip' }, String(snapshots.length)) : null),
+              snapshots.length === 0
+                ? h('p', { className: 'dtn-panelEmpty' }, t('panelNoSnapshots'))
+                : h(
+                    'div',
+                    { className: 'dtn-appList' },
+                    snapshots.map((snapshot) =>
+                      h(
+                        'div',
+                        { className: 'dtn-appRow', key: snapshot.id },
+                        h(
+                          'div',
+                          { className: 'dtn-appMain' },
+                          h('span', { className: 'dtn-appName' }, snapshot.name || snapshot.id),
+                          h('span', { className: 'dtn-appMeta' }, `${snapshot.dataset || ''}${snapshot.created ? ` · ${new Date(snapshot.created).toLocaleString()}` : ''}`),
+                        ),
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: `dtn-miniBtn dtn-miniBtnDanger${armed === `snapshot.delete:${snapshot.id}` ? ' dtn-miniBtnArmed' : ''}`,
+                            disabled: busy !== '',
+                            onClick: () => act('snapshot.delete', { id: snapshot.id }),
+                          },
+                          armed === `snapshot.delete:${snapshot.id}` ? t('panelConfirmDelete') : t('panelDelete'),
+                        ),
+                      ),
+                    ),
+                  ),
+            )
+          : null
+
+      const replicationSection =
+        data && data.ok && replication.length
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelReplication'), h('span', { className: 'dtn-chip' }, String(replication.length))),
+              replication.map((task) =>
+                h(
+                  'div',
+                  { className: 'dtn-appRow', key: task.id },
+                  h(
+                    'div',
+                    { className: 'dtn-appMain' },
+                    h('span', { className: 'dtn-appName' }, task.name || `task ${task.id}`),
+                    h('span', { className: 'dtn-appMeta' }, `${task.state}${task.enabled ? '' : ' · off'}`),
+                  ),
+                ),
+              ),
+            )
+          : null
+
+      const cloudSection =
+        data && data.ok && cloud.length
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelCloud'), h('span', { className: 'dtn-chip' }, String(cloud.length))),
+              cloud.map((task) =>
+                h(
+                  'div',
+                  { className: 'dtn-appRow', key: task.id },
+                  h(
+                    'div',
+                    { className: 'dtn-appMain' },
+                    h('span', { className: 'dtn-appName' }, task.name || task.id),
+                    h('span', { className: 'dtn-appMeta' }, `${task.kind}${task.state ? ` · ${task.state}` : ''}${task.enabled ? '' : ' · off'}`),
+                  ),
+                ),
+              ),
+            )
+          : null
+
+      const networkSection =
+        data && data.ok && network.length
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelNetwork'), h('span', { className: 'dtn-chip' }, String(network.length))),
+              network.map((iface) =>
+                h(
+                  'div',
+                  { className: 'dtn-appRow', key: iface.name },
+                  h(
+                    'div',
+                    { className: 'dtn-appMain' },
+                    h('span', { className: 'dtn-appName' }, iface.name),
+                    h('span', { className: 'dtn-appMeta' }, `${iface.type} · ${iface.link}${iface.addresses ? ` · ${iface.addresses}` : ''}`),
+                  ),
+                ),
+              ),
+            )
+          : null
+
+      const vmSection =
+        data && data.ok && vms.length
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelVms'), h('span', { className: 'dtn-chip' }, String(vms.length))),
+              vms.map((vm) => {
+                const running = vm.state === 'RUNNING'
+                return h(
+                  'div',
+                  { className: 'dtn-appRow', key: vm.id },
+                  h(
+                    'div',
+                    { className: 'dtn-appMain' },
+                    h('span', { className: 'dtn-appName' }, vm.name),
+                    h('span', { className: 'dtn-appMeta' }, `${vm.state}${vm.vcpus ? ` · ${vm.vcpus} vCPU` : ''}${vm.memory ? ` · ${humanBytes(vm.memory)}` : ''}`),
+                  ),
+                  h(
+                    'div',
+                    { className: 'dtn-appActions' },
+                    running
+                      ? h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('vm.stop', { id: vm.id }) }, t('panelStop'))
+                      : h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('vm.start', { id: vm.id }) }, t('panelStart')),
+                  ),
+                )
+              }),
+            )
+          : null
+
+      const iscsiSection =
+        data && data.ok && (iscsi.targets || iscsi.sessions)
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelIscsi'), h('span', { className: 'dtn-chip' }, `${iscsi.sessions}`)),
+              h(
+                'div',
+                { className: 'dtn-appRow' },
+                h(
+                  'div',
+                  { className: 'dtn-appMain' },
+                  h('span', { className: 'dtn-appMeta' }, `${iscsi.targets} target(s) · ${iscsi.sessions} session(s)${iscsi.names && iscsi.names.length ? ` · ${iscsi.names.join(', ')}` : ''}`),
+                ),
+              ),
+            )
+          : null
+
+      const upsSection =
+        data && data.ok && ups
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelUps')),
+              h(
+                'div',
+                { className: 'dtn-appRow' },
+                h(
+                  'div',
+                  { className: 'dtn-appMain' },
+                  h(
+                    'span',
+                    { className: 'dtn-appMeta' },
+                    [typeof ups.charge === 'number' ? `${Math.round(ups.charge)}%` : '', typeof ups.runtime === 'number' ? `${Math.round(ups.runtime)}s` : ''].filter(Boolean).join(' · '),
+                  ),
+                ),
+              ),
+            )
+          : null
+
       const jobSection =
         data && data.ok && jobs.length
           ? h(
@@ -1406,6 +1605,13 @@ window.__ModuleLoader__.load({
         appSection,
         diskSection,
         certSection,
+        snapshotSection,
+        replicationSection,
+        cloudSection,
+        networkSection,
+        vmSection,
+        iscsiSection,
+        upsSection,
         jobSection,
         alertSection,
       )

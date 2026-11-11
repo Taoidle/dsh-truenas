@@ -32,3 +32,38 @@ test('core.bulk of harmless methods stays harmless', () => {
   const verdict = classifyCall('core.bulk', ['system.info', [{}]])
   assert.equal(verdict.dangerous, false)
 })
+
+test('new namespaces are gated too', () => {
+  for (const method of [
+    'vm.delete',
+    'vm.device.delete',
+    'iscsi.target.delete',
+    'iscsi.extent.delete',
+    'nvmet.subsys.delete',
+    'keychaincredential.delete',
+    'ups.config.update',
+    'reporting.update',
+    'interface.commit',
+    'interface.delete',
+    'cloudsync.credentials.delete',
+    'certificate.delete',
+  ]) {
+    assert.equal(classifyMethod(method).dangerous, true, `${method} should need confirmation`)
+  }
+})
+
+test('reading the same namespaces stays safe', () => {
+  for (const method of [
+    'vm.query',
+    'vm.status',
+    'iscsi.target.query',
+    'nvmet.subsys.query',
+    'certificate.query',
+    'reporting.get_data',
+    'interface.query',
+    'cloudsync.credentials.query',
+    'disk.temperatures',
+  ]) {
+    assert.equal(classifyMethod(method).dangerous, false, `${method} should be safe`)
+  }
+})

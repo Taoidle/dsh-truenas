@@ -17,11 +17,12 @@ function fakeClient(overrides = {}) {
       }
       // Write actions answer with a job id; the light ones answer null.
       if (method.startsWith('app.')) return 101
-      if (method === 'core.job_abort' || method === 'alert.dismiss' || method === 'pool.snapshot.create') return null
-      if (method === 'service.query' || method === 'certificate.query' || method === 'disk.query') {
-        return overrides[method] || []
-      }
+      if (method.startsWith('vm.')) return 102
+      if (method === 'core.job_abort' || method === 'alert.dismiss' || method === 'pool.snapshot.create' || method === 'pool.snapshot.delete') return null
       if (method === 'disk.temperatures') return {}
+      // Every read-only list endpoint the panel touches answers with an empty
+      // collection unless the fixture provides one; writes answer above.
+      if (method.endsWith('.query') || method === 'iscsi.global.sessions' || method === 'nvmet.global.sessions') return []
       throw new Error(`unexpected call: ${method}`)
     },
     async waitJob(id) {
@@ -190,4 +191,61 @@ test('snapshot.create accepts an explicit name and refuses an empty dataset', as
   assert.equal(refused.ok, false)
   assert.match(refused.error, /dataset/)
   assert.equal(client.calls.length, before)
+})
+
+const extended = {
+  ...healthy,
+  'pool.snapshot.query': [
+    { id: 11, dataset: 'tank', name: 'panel-20261111-120000', createtxg: 900 },
+  ],
+  'replication.query': [
+    { id: 2, name: 'tank→backup', state: 'FINISHED', enabled: true, source_datasets: ['tank'], target_dataset: 'backup/tank', job: { state: 'SUCCESS' } },
+  ],
+  'cloudsync.query': [
+    { id: 3, description: 'b2-photos', path: '/mnt/tank/photos', direction: 'PUSH', enabled: true, job: { state: 'SUCCESS' } },
+  ],
+  'cloud_backup.query': [],
+  'interface.query': [
+    { id: 'enp6s18', name: 'enp6s18', type: 'PHYSICAL', state: { link_state: 'LINK_STATE_UP' }, aliases: [{ type: 'INET', address: '192.168.2.10', netmask: 24 }] },
+  ],
+  'vm.query': [
+    { id: 3, name: 'win11', state: 'RUNNING', vcpus: 4, cores: 2, memory: 8 * GIB, autostart: true },
+  ],
+  'iscsi.target.query': [{ id: 1, name: 'iqn.2005-10.org.freenas.ctl:tank' }],
+  'iscsi.global.sessions': [{ initiator: 'iqn.1', target: 'iqn.2', cid: 1, tsih: 1 }],
+}
+
+test('overview renders snapshots, replication, cloud, network, vms, iscsi and ups', async () => {
+  const { panel } = harness(extended)
+  const state = await panel.overview()
+
+  assert.equal(state.ok, true)
+  assert.deepEqual(state.snapshots.map((row) => row.name), ['panel-20261111-120000'])
+  assert.equal(state.replication.length, 1)
+  assert.equal(state.cloud.length, 1)
+  assert.equal(state.network.length, 1)
+  assert.equal(state.network[0].link, 'up')
+  assert.match(state.network[0].addresses, /192\.168\.2\.10/)
+  assert.deepEqual(state.vms.map((row) => row.name), ['win11'])
+  assert.equal(state.iscsi.targets, 1)
+  assert.equal(state.iscsi.sessions, 1)
+  assert.equal(state.ups, null)
+  assert.deepEqual(state.issues, [])
+})
+
+test('vm actions wait for their job and snapshot.delete needs confirmation', async () => {
+  const { panel, client } = harness(extended)
+  const started = await panel.act({ action: 'vm.start', id: 3 })
+  assert.equal(started.ok, true)
+  assert.deepEqual(client.calls.at(-1), ['vm.start', [3]])
+
+  const before = client.calls.length
+  const refused = await panel.act({ action: 'snapshot.delete', id: 11 })
+  assert.equal(refused.ok, false)
+  assert.equal(refused.requiresConfirm, true)
+  assert.equal(client.calls.length, before)
+
+  const deleted = await panel.act({ action: 'snapshot.delete', id: 11, confirm: true })
+  assert.equal(deleted.ok, true)
+  assert.deepEqual(client.calls.at(-1), ['pool.snapshot.delete', ['11', { recursive: false }]])
 })

@@ -100,6 +100,11 @@ shows one system at a time (a dropdown switches when several are configured):
   `Delete` behind a second click;
 - disks with model, bus and live temperature, plus a `Self-test` button;
 - certificate expiry with an `Expired` / `Renew soon` badge;
+- the newest snapshots per pool with `Delete` behind a second click;
+- replication and cloud-sync health (last job state and result);
+- network interfaces with link state and addresses;
+- virtual machines with `Start` / `Stop` and their state;
+- iSCSI target and session counts, and UPS charge/runtime when one is attached;
 - running jobs with a progress bar and an `Abort` button;
 - open alerts with `Dismiss`.
 
@@ -155,6 +160,10 @@ Docker, privileges) stays available to the agent through the tools below.
 | `truenas_services` | System services: list, start, stop, restart, reload, and enable/disable at boot. |
 | `truenas_certificates` | Certificates with expiry state, ACME servers and DNS authenticators; delete. Renewal itself is a web-UI action (see Notes). |
 | `truenas_disks` | Disks with model, bus, size and temperature; start a SMART self-test; wipe a disk behind `confirm`. |
+| `truenas_vms` | Virtual machines: list, inspect, status, start/stop/restart/suspend/resume, clone, delete (with `confirm`). |
+| `truenas_iscsi` | iSCSI: targets, extents, portals, initiators, live sessions; guarded target/extent deletion. |
+| `truenas_nvmet` | NVMe-oF: subsystems, hosts, namespaces, ports, live sessions; guarded subsystem deletion. |
+| `truenas_files` | Filesystem: `listdir`, `stat`, `statfs`, `mkdir` on an absolute path. |
 | `truenas_call` | Any JSON-RPC method, for everything the curated tools miss. |
 
 Every tool except `truenas_instances` and `truenas_call` takes an optional
@@ -225,6 +234,18 @@ truenas_system action="update_status"
 truenas_system action="ssh_config"
 truenas_users action="privileges"
 truenas_users action="api_keys"
+
+# Virtual machines, iSCSI and files
+truenas_vms action="list"
+truenas_vms action="start" id="win11"
+truenas_iscsi action="overview"
+truenas_nvmet action="subsystems"
+truenas_files action="listdir" path="/mnt/tank/media"
+
+# Pool lifecycle, boot environments and NTP
+truenas_storage action="pool_create" pool="tank" disks='["sda","sdb"]' raidType="MIRROR" confirm=true
+truenas_system action="general"
+truenas_system action="ntp_add" ntp={"address":"time.cloudflare.com"}
 
 # Services, certificates and disks
 truenas_services action="list"
