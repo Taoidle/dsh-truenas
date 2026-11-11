@@ -66,7 +66,20 @@ function build() {
       if (method === 'pool.import_pool') return true
       if (method === 'pool.upgrade') return true
       if (method === 'pool.snapshot.hold' || method === 'pool.snapshot.release') return null
-      if (method === 'system.general.config') return { id: 1, hostname: 'nas', domain: 'lan', timezone: 'Asia/Shanghai' }
+      if (method === 'system.general.config') {
+        return {
+          id: 1,
+          hostname: 'nas',
+          domain: 'lan',
+          timezone: 'Asia/Shanghai',
+          ui_certificate: {
+            id: 1,
+            name: 'truenas_default',
+            certificate: '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----',
+            privatekey: '-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----',
+          },
+        }
+      }
       if (method === 'system.advanced.config') return { id: 1, autotune: false, consolemenu: false }
       if (method === 'system.general.update' || method === 'system.advanced.update') return { id: 1, ...params[0] }
       if (method === 'system.ntpserver.create') return { id: 2, ...params[0] }
@@ -368,4 +381,17 @@ test('replication: global config read and update', async () => {
   const updated = await tool.execute({ action: 'config_update', config: { max_parallel_replication_tasks: 3 } })
   assert.equal(updated.ok, true)
   assert.ok(calls.some((call) => call.method === 'replication.config.update'))
+})
+
+test('system config views redact certificate material and passwords', async () => {
+  const { byName } = build()
+  const tool = byName('truenas_system')
+  const changed = await tool.execute({ action: 'general_update', general: { hostname: 'nas2' } })
+  assert.equal(changed.ok, true)
+
+  const general = await tool.execute({ action: 'general' })
+  assert.equal(general.ok, true)
+  assert.ok(!general.text.includes('BEGIN PRIVATE KEY'))
+  assert.ok(!general.text.includes('BEGIN CERTIFICATE'))
+  assert.match(general.text, /ui_certificate/)
 })
