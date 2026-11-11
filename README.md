@@ -85,6 +85,8 @@ middleware counts as insecure and will burn the key.
 
 ## Right-sidebar panel
 
+![TrueNAS overview panel](docs/panel.png)
+
 With the [Better Sidebar](https://www.npmjs.com/package/dsh-better-sidebar) plugin
 installed, this bundle adds a **TrueNAS overview** tab to the right sidebar. It
 shows one system at a time (a dropdown switches when several are configured):
