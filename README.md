@@ -94,10 +94,21 @@ shows one system at a time (a dropdown switches when several are configured):
 - cards for CPU, memory, the busiest pool and CPU temperature, with a load bar;
 - every pool with health, usage and a one-click `Snapshot` (names look like
   `panel-20261111-112833`, so they are easy to find later);
+- system services with `Start` / `Stop` / `Restart` and a boot-flag toggle
+  (SMB, NFS, SSH, rsync, …);
 - installed applications with `Start` / `Stop` / `Restart` / `Update`, and
   `Delete` behind a second click;
+- disks with model, bus and live temperature, plus a `Self-test` button;
+- certificate expiry with an `Expired` / `Renew soon` badge;
 - running jobs with a progress bar and an `Abort` button;
 - open alerts with `Dismiss`.
+
+Slow sections are cached on their own cadence (services 10 s, disks 20 s,
+certificates 60 s) so a 2.5-second stream does not re-query them on every tick;
+a failed refresh keeps the last good rows. Certificate **renewal** has no API in
+TrueNAS 25.10 (`certificate.*` has create/update/delete/query only, and `acme`
+is just the DNS authenticators), so the card shows the countdown and points at
+the NAS web UI instead of offering a button that cannot work.
 
 The panel never talks to a NAS from the browser. It uses three same-origin
 routes — `GET /dsh-truenas/panel?instance=<name>`,
@@ -141,13 +152,17 @@ Docker, privileges) stays available to the agent through the tools below.
 | `truenas_tasks` | Cron jobs and rsync tasks: list, inspect, create, update, delete, run now. |
 | `truenas_reporting` | Netdata graph list, time-series data (CPU, memory, disk, interface, load, …), reporting config, exporters. |
 | `truenas_docker` | Docker engine status and configuration, networks, NVIDIA runtime, and Apps dataset backups. |
+| `truenas_services` | System services: list, start, stop, restart, reload, and enable/disable at boot. |
+| `truenas_certificates` | Certificates with expiry state, ACME servers and DNS authenticators; delete. Renewal itself is a web-UI action (see Notes). |
+| `truenas_disks` | Disks with model, bus, size and temperature; start a SMART self-test; wipe a disk behind `confirm`. |
 | `truenas_call` | Any JSON-RPC method, for everything the curated tools miss. |
 
 Every tool except `truenas_instances` and `truenas_call` takes an optional
 `instance` name. Destructive actions (`delete_dataset`, snapshot delete and
 rollback, share delete, job abort, app delete, registry remove, instance remove,
 route remove, replication/cloud sync delete, alert service delete, user/group
-delete, ACL replacement) refuse to run unless `confirm: true` is passed.
+delete, ACL replacement, certificate delete, SMART test, disk wipe) refuse to run
+unless `confirm: true` is passed.
 
 `truenas_call` is the escape hatch, but it is not a blind one: it keeps a table
 of methods that take the system down or destroy data (`system.reboot`,
@@ -210,6 +225,15 @@ truenas_system action="update_status"
 truenas_system action="ssh_config"
 truenas_users action="privileges"
 truenas_users action="api_keys"
+
+# Services, certificates and disks
+truenas_services action="list"
+truenas_services action="restart" name="smb"
+truenas_services action="disable" name="ftp"
+truenas_certificates action="list"
+truenas_certificates action="authenticators"
+truenas_disks action="list"
+truenas_disks action="smart_test" name="sda" testType="SHORT"
 
 # The escape hatch refuses system.reboot without confirmation too
 truenas_call method="user.query" params=[[]]

@@ -18,6 +18,10 @@ function fakeClient(overrides = {}) {
       // Write actions answer with a job id; the light ones answer null.
       if (method.startsWith('app.')) return 101
       if (method === 'core.job_abort' || method === 'alert.dismiss' || method === 'pool.snapshot.create') return null
+      if (method === 'service.query' || method === 'certificate.query' || method === 'disk.query') {
+        return overrides[method] || []
+      }
+      if (method === 'disk.temperatures') return {}
       throw new Error(`unexpected call: ${method}`)
     },
     async waitJob(id) {

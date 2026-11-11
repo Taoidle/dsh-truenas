@@ -89,6 +89,19 @@ window.__ModuleLoader__.load({
       panelAlerts: 'Alerts',
       panelPools: 'Pools',
       panelNoPools: 'No pools on this system.',
+      panelServices: 'Services',
+      panelCertificates: 'Certificates',
+      panelDisks: 'Disks',
+      panelNoServices: 'No services reported.',
+      panelNoCerts: 'No certificates on this NAS.',
+      panelNoDisks: 'No disks attached.',
+      panelBootOn: 'Boot on',
+      panelBootOff: 'Boot off',
+      panelSelfTest: 'Self-test',
+      panelExpired: 'Expired',
+      panelRenewSoon: 'Renew soon',
+      panelNoTemp: 'no sensor',
+      panelCertNote: 'Renew from the NAS web UI.',
       panelSnapshot: 'Snapshot',
       panelSnapshotBusy: 'Snapshotting…',
       panelNoApps: 'No applications installed.',
@@ -180,6 +193,19 @@ window.__ModuleLoader__.load({
       panelAlerts: '告警',
       panelPools: '存储池',
       panelNoPools: '这台系统上没有存储池。',
+      panelServices: '服务',
+      panelCertificates: '证书',
+      panelDisks: '磁盘',
+      panelNoServices: '没有可显示的服务。',
+      panelNoCerts: '这台 NAS 上没有证书。',
+      panelNoDisks: '没有连接磁盘。',
+      panelBootOn: '自启开',
+      panelBootOff: '自启关',
+      panelSelfTest: '自检',
+      panelExpired: '已过期',
+      panelRenewSoon: '即将到期',
+      panelNoTemp: '无传感器',
+      panelCertNote: '续期请在 NAS Web UI 中完成。',
       panelSnapshot: '快照',
       panelSnapshotBusy: '正在创建快照…',
       panelNoApps: '尚未安装应用。',
@@ -263,6 +289,8 @@ window.__ModuleLoader__.load({
 .dtn-section{display:flex;flex-direction:column;gap:6px}
 .dtn-sectionHead{display:flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .dtn-appList{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;padding-right:2px}
+.dtn-serviceList,.dtn-diskList{max-height:220px}
+.dtn-certList{max-height:180px}
 .dtn-poolList{display:flex;flex-direction:column;gap:6px}
 .dtn-poolRow{display:flex;align-items:center;gap:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 8px;background:var(--dsw-alias-bg-layer-2)}
 .dtn-appRow{display:flex;align-items:center;gap:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 8px;background:var(--dsw-alias-bg-layer-2)}
@@ -979,6 +1007,9 @@ window.__ModuleLoader__.load({
       const pools = (data && Array.isArray(data.pools) ? data.pools : []).slice(0, 8)
       const jobs = (data && Array.isArray(data.jobs) ? data.jobs : []).slice(0, 5)
       const alerts = (data && Array.isArray(data.alerts) ? data.alerts : []).slice(0, 4)
+      const services = (data && Array.isArray(data.services) ? data.services : []).slice(0, 40)
+      const certificates = data && Array.isArray(data.certificates) ? data.certificates : []
+      const disks = data && Array.isArray(data.disks) ? data.disks : []
       const running = apps.filter((app) => app.state === 'RUNNING').length
 
       async function act(action, extra) {
@@ -1181,6 +1212,137 @@ window.__ModuleLoader__.load({
             )
           : null
 
+      const serviceSection =
+        data && data.ok
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h(
+                'div',
+                { className: 'dtn-sectionHead' },
+                t('panelServices'),
+                services.length
+                  ? h('span', { className: 'dtn-chip' }, `${services.filter((svc) => svc.running).length}/${services.length}`)
+                  : null,
+              ),
+              services.length === 0
+                ? h('p', { className: 'dtn-panelEmpty' }, t('panelNoServices'))
+                : h(
+                    'div',
+                    { className: 'dtn-appList dtn-serviceList' },
+                    services.map((svc) =>
+                      h(
+                        'div',
+                        { className: 'dtn-appRow', key: `${svc.id}:${svc.name}` },
+                        h(
+                          'div',
+                          { className: 'dtn-appMain' },
+                          h('span', { className: 'dtn-appName' }, svc.name),
+                          h('span', { className: 'dtn-appMeta' }, `${svc.state}${svc.enabled ? ` · ${t('panelBootOn')}` : ` · ${t('panelBootOff')}`}`),
+                        ),
+                        h(
+                          'div',
+                          { className: 'dtn-appActions' },
+                          svc.running
+                            ? h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('service.control', { name: svc.name, verb: 'STOP' }) }, t('panelStop'))
+                            : h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('service.control', { name: svc.name, verb: 'START' }) }, t('panelStart')),
+                          h('button', { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('service.control', { name: svc.name, verb: 'RESTART' }) }, t('panelRestart')),
+                          h(
+                            'button',
+                            { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('service.enable', { name: svc.name, enabled: !svc.enabled }) },
+                            svc.enabled ? t('panelBootOn') : t('panelBootOff'),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+            )
+          : null
+
+      const diskSection =
+        data && data.ok
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h('div', { className: 'dtn-sectionHead' }, t('panelDisks'), disks.length ? h('span', { className: 'dtn-chip' }, String(disks.length)) : null),
+              disks.length === 0
+                ? h('p', { className: 'dtn-panelEmpty' }, t('panelNoDisks'))
+                : h(
+                    'div',
+                    { className: 'dtn-appList dtn-diskList' },
+                    disks.map((disk) =>
+                      h(
+                        'div',
+                        { className: 'dtn-appRow', key: disk.name },
+                        h(
+                          'div',
+                          { className: 'dtn-appMain' },
+                          h('span', { className: 'dtn-appName' }, disk.name),
+                          h(
+                            'span',
+                            { className: 'dtn-appMeta' },
+                            `${disk.model || ''}${disk.bus ? ` · ${disk.bus}` : ''} · ${
+                              typeof disk.celsius === 'number' ? `${disk.celsius} °C` : t('panelNoTemp')
+                            }`,
+                          ),
+                        ),
+                        h(
+                          'button',
+                          { type: 'button', className: 'dtn-miniBtn', disabled: busy !== '', onClick: () => act('smart.test', { disk: disk.name, testType: 'SHORT' }) },
+                          t('panelSelfTest'),
+                        ),
+                      ),
+                    ),
+                  ),
+            )
+          : null
+
+      const certSection =
+        data && data.ok
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h(
+                'div',
+                { className: 'dtn-sectionHead' },
+                t('panelCertificates'),
+                certificates.length
+                  ? h(
+                      'span',
+                      { className: `dtn-chip${data.expiring ? ' dtn-chipWarn' : ''}` },
+                      data.expiring ? `${data.expiring}/${certificates.length}` : String(certificates.length),
+                    )
+                  : null,
+              ),
+              certificates.length === 0
+                ? h('p', { className: 'dtn-panelEmpty' }, t('panelNoCerts'))
+                : h(
+                    'div',
+                    { className: 'dtn-appList dtn-certList' },
+                    certificates.map((cert) =>
+                      h(
+                        'div',
+                        { className: 'dtn-appRow', key: cert.id },
+                        h(
+                          'div',
+                          { className: 'dtn-appMain' },
+                          h('span', { className: 'dtn-appName' }, cert.name),
+                          h(
+                            'span',
+                            { className: 'dtn-appMeta' },
+                            `${cert.state === 'EXPIRED' ? t('panelExpired') : cert.days !== undefined ? `${cert.days}d` : ''}${cert.common ? ` · ${cert.common}` : ''}`,
+                          ),
+                        ),
+                        cert.state !== 'valid'
+                          ? h('span', { className: 'dtn-chip dtn-chipWarn' }, cert.state === 'EXPIRED' ? t('panelExpired') : t('panelRenewSoon'))
+                          : null,
+                      ),
+                    ),
+                    h('p', { className: 'dtn-panelEmpty' }, t('panelCertNote')),
+                  ),
+            )
+          : null
+
       const jobSection =
         data && data.ok && jobs.length
           ? h(
@@ -1240,7 +1402,10 @@ window.__ModuleLoader__.load({
         status,
         cardNodes,
         poolSection,
+        serviceSection,
         appSection,
+        diskSection,
+        certSection,
         jobSection,
         alertSection,
       )
