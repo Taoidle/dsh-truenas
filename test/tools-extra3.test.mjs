@@ -353,6 +353,7 @@ test('alerts: classes list and update', async () => {
 
   const updated = await tool.execute({ action: 'classes_update', classes: { ZFS: 'WARNING' } })
   assert.equal(updated.ok, true)
+
 })
 
 test('apps: rollback versions and guarded custom conversion', async () => {
