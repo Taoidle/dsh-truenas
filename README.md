@@ -92,17 +92,22 @@ installed, this bundle adds a **TrueNAS overview** tab to the right sidebar. It
 shows one system at a time (a dropdown switches when several are configured):
 
 - cards for CPU, memory, the busiest pool and CPU temperature, with a load bar;
+- every pool with health, usage and a one-click `Snapshot` (names look like
+  `panel-20261111-112833`, so they are easy to find later);
 - installed applications with `Start` / `Stop` / `Restart` / `Update`, and
   `Delete` behind a second click;
 - running jobs with a progress bar and an `Abort` button;
 - open alerts with `Dismiss`.
 
-The panel never talks to a NAS from the browser. It polls two same-origin
-routes — `GET /dsh-truenas/panel?instance=<name>` and
+The panel never talks to a NAS from the browser. It uses three same-origin
+routes — `GET /dsh-truenas/panel?instance=<name>`,
+`GET /dsh-truenas/panel/stream?instance=<name>` (server-sent events) and
 `POST /dsh-truenas/panel/action` — which reuse the plugin's pooled WebSocket
-client. Reads are cached for four seconds on the host and the browser only polls
-while the tab is visible (`visible` from Better Sidebar's `TabComponentProps`),
-so a hidden panel costs nothing. `app.delete` is refused unless the request
+client. The stream pushes a fresh snapshot every 2.5 seconds so job progress
+moves without a browser poll; when `EventSource` is missing or the stream drops,
+the panel falls back to polling `GET /dsh-truenas/panel` every six seconds. Both
+paths only run while the tab is visible (`visible` from Better Sidebar's
+`TabComponentProps`), so a hidden panel costs nothing. `app.delete` is refused unless the request
 carries `confirm: true`; the UI arms the button for five seconds instead of
 using a native dialog.
 

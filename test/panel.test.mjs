@@ -17,7 +17,7 @@ function fakeClient(overrides = {}) {
       }
       // Write actions answer with a job id; the light ones answer null.
       if (method.startsWith('app.')) return 101
-      if (method === 'core.job_abort' || method === 'alert.dismiss') return null
+      if (method === 'core.job_abort' || method === 'alert.dismiss' || method === 'pool.snapshot.create') return null
       throw new Error(`unexpected call: ${method}`)
     },
     async waitJob(id) {
@@ -162,4 +162,28 @@ test('unknown actions are refused', async () => {
   assert.equal(result.ok, false)
   assert.match(result.error, /Unsupported panel action/)
   assert.equal(client.calls.length, 0)
+})
+
+test('snapshot.create snapshots the requested dataset with a generated name', async () => {
+  const { panel, client } = harness(healthy)
+  const result = await panel.act({ action: 'snapshot.create', dataset: 'tank' })
+  assert.equal(result.ok, true)
+  assert.equal(result.snapshot.dataset, 'tank')
+  assert.match(result.snapshot.name, /^panel-\d{8}-\d{6}$/)
+  const [method, params] = client.calls.at(-1)
+  assert.equal(method, 'pool.snapshot.create')
+  assert.deepEqual(params, [{ dataset: 'tank', name: result.snapshot.name }])
+})
+
+test('snapshot.create accepts an explicit name and refuses an empty dataset', async () => {
+  const { panel, client } = harness(healthy)
+  const named = await panel.act({ action: 'snapshot.create', dataset: 'tank/data', name: 'before-upgrade' })
+  assert.equal(named.ok, true)
+  assert.deepEqual(client.calls.at(-1), ['pool.snapshot.create', [{ dataset: 'tank/data', name: 'before-upgrade' }]])
+
+  const before = client.calls.length
+  const refused = await panel.act({ action: 'snapshot.create' })
+  assert.equal(refused.ok, false)
+  assert.match(refused.error, /dataset/)
+  assert.equal(client.calls.length, before)
 })

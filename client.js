@@ -87,6 +87,10 @@ window.__ModuleLoader__.load({
       panelApps: 'Applications',
       panelJobs: 'Jobs',
       panelAlerts: 'Alerts',
+      panelPools: 'Pools',
+      panelNoPools: 'No pools on this system.',
+      panelSnapshot: 'Snapshot',
+      panelSnapshotBusy: 'Snapshotting…',
       panelNoApps: 'No applications installed.',
       panelNoJobs: 'No job is running.',
       panelNoAlerts: 'No open alert.',
@@ -174,6 +178,10 @@ window.__ModuleLoader__.load({
       panelApps: '应用',
       panelJobs: '作业',
       panelAlerts: '告警',
+      panelPools: '存储池',
+      panelNoPools: '这台系统上没有存储池。',
+      panelSnapshot: '快照',
+      panelSnapshotBusy: '正在创建快照…',
       panelNoApps: '尚未安装应用。',
       panelNoJobs: '没有正在运行的作业。',
       panelNoAlerts: '没有未处理的告警。',
@@ -255,6 +263,8 @@ window.__ModuleLoader__.load({
 .dtn-section{display:flex;flex-direction:column;gap:6px}
 .dtn-sectionHead{display:flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .dtn-appList{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;padding-right:2px}
+.dtn-poolList{display:flex;flex-direction:column;gap:6px}
+.dtn-poolRow{display:flex;align-items:center;gap:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 8px;background:var(--dsw-alias-bg-layer-2)}
 .dtn-appRow{display:flex;align-items:center;gap:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 8px;background:var(--dsw-alias-bg-layer-2)}
 .dtn-appMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .dtn-appName{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -790,6 +800,7 @@ window.__ModuleLoader__.load({
 
 
     const PANEL_PATH = '/dsh-truenas/panel'
+    const PANEL_STREAM_PATH = '/dsh-truenas/panel/stream'
     const PANEL_ACTION_PATH = '/dsh-truenas/panel/action'
     const PANEL_TAB_ID = 'dsh-truenas:panel'
     const PANEL_REFRESH_MS = 6000
@@ -861,6 +872,18 @@ window.__ModuleLoader__.load({
       const armTimer = React.useRef(null)
       const inflight = React.useRef(false)
 
+      const applyPayload = React.useCallback(
+        (payload) => {
+          setView({
+            phase: 'ready',
+            data: payload,
+            error: payload && payload.ok === false ? payload.error || t('panelOffline') : null,
+            stale: false,
+          })
+        },
+        [t],
+      )
+
       const load = React.useCallback(
         async (instance, first) => {
           // A slow NAS plus a 6 s interval must not stack requests.
@@ -879,7 +902,7 @@ window.__ModuleLoader__.load({
               await new Promise((resolve) => setTimeout(resolve, 400))
               payload = await attempt()
             }
-            setView({ phase: 'ready', data: payload, error: payload && payload.ok === false ? payload.error || t('panelOffline') : null, stale: false })
+            applyPayload(payload)
           } catch (error) {
             const reason = String((error && error.message) || error)
             const text = /fetch|network|load failed|abort/i.test(reason) ? t('panelOffline') : reason
@@ -890,15 +913,55 @@ window.__ModuleLoader__.load({
             inflight.current = false
           }
         },
-        [t],
+        [applyPayload, t],
       )
 
       React.useEffect(() => {
         if (!visible) return undefined
+        const query = selected ? `?instance=${encodeURIComponent(selected)}` : ''
+        let polling = null
+        let stream = null
+
+        const startPolling = () => {
+          if (polling) return
+          polling = setInterval(() => load(selected, false), PANEL_REFRESH_MS)
+        }
+
+        // First paint comes from the plain route; the stream then keeps it fresh
+        // (job progress moves without a browser poll). If EventSource is missing
+        // or the stream drops, fall back to the interval for this view.
         load(selected, true)
-        const id = setInterval(() => load(selected, false), PANEL_REFRESH_MS)
-        return () => clearInterval(id)
-      }, [visible, selected, load])
+        if (typeof EventSource === 'function') {
+          try {
+            stream = new EventSource(PANEL_STREAM_PATH + query)
+            stream.onopen = () => console.info('[dsh-truenas] panel stream connected')
+            stream.onmessage = (event) => {
+              try {
+                applyPayload(JSON.parse(String(event.data)))
+              } catch {
+                // A malformed frame is dropped; the next one will do.
+              }
+            }
+            stream.onerror = () => {
+              console.info('[dsh-truenas] panel stream closed, falling back to polling')
+              if (stream) {
+                stream.close()
+                stream = null
+              }
+              load(selected, true)
+              startPolling()
+            }
+          } catch {
+            stream = null
+          }
+        }
+        if (!stream) startPolling()
+
+        return () => {
+          if (stream) stream.close()
+          if (polling) clearInterval(polling)
+        }
+      }, [visible, selected, load, applyPayload])
 
       React.useEffect(
         () => () => {
@@ -913,6 +976,7 @@ window.__ModuleLoader__.load({
       const entry = instances.find((item) => item.name === current)
       const cards = (data && data.cards) || {}
       const apps = (data && Array.isArray(data.apps) ? data.apps : []).slice(0, 40)
+      const pools = (data && Array.isArray(data.pools) ? data.pools : []).slice(0, 8)
       const jobs = (data && Array.isArray(data.jobs) ? data.jobs : []).slice(0, 5)
       const alerts = (data && Array.isArray(data.alerts) ? data.alerts : []).slice(0, 4)
       const running = apps.filter((app) => app.state === 'RUNNING').length
@@ -1009,6 +1073,57 @@ window.__ModuleLoader__.load({
                 label: t('panelTemp'),
                 value: cards.temperature && typeof cards.temperature.celsius === 'number' ? `${Math.round(cards.temperature.celsius)}°C` : '—',
               }),
+            )
+          : null
+
+      const poolSection =
+        data && data.ok
+          ? h(
+              'div',
+              { className: 'dtn-section' },
+              h(
+                'div',
+                { className: 'dtn-sectionHead' },
+                t('panelPools'),
+                pools.length ? h('span', { className: 'dtn-chip' }, String(pools.length)) : null,
+              ),
+              pools.length === 0
+                ? h('p', { className: 'dtn-panelEmpty' }, t('panelNoPools'))
+                : h(
+                    'div',
+                    { className: 'dtn-poolList' },
+                    pools.map((pool) =>
+                      h(
+                        'div',
+                        { className: 'dtn-poolRow', key: pool.name },
+                        h(
+                          'div',
+                          { className: 'dtn-appMain' },
+                          h('span', { className: 'dtn-appName' }, pool.name),
+                          h('span', { className: 'dtn-appMeta' }, `${pool.status || ''}${pool.text ? ` · ${pool.text}` : ''}`),
+                          typeof pool.percent === 'number'
+                            ? h(
+                                'div',
+                                { className: 'dtn-bar' },
+                                h('div', { className: barClass(pool.percent), style: { width: `${Math.max(2, Math.min(100, pool.percent))}%` } }),
+                              )
+                            : null,
+                        ),
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'dtn-miniBtn',
+                            // Snapshots are cheap and reversible, so one click is
+                            // enough; the dataset is the pool root.
+                            disabled: busy !== '',
+                            onClick: () => act('snapshot.create', { dataset: pool.name }),
+                          },
+                          busy.startsWith('snapshot.create') ? t('panelSnapshotBusy') : t('panelSnapshot'),
+                        ),
+                      ),
+                    ),
+                  ),
             )
           : null
 
@@ -1124,6 +1239,7 @@ window.__ModuleLoader__.load({
         empty,
         status,
         cardNodes,
+        poolSection,
         appSection,
         jobSection,
         alertSection,
